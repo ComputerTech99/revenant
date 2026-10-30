@@ -1,4 +1,4 @@
-const BASE_NOW = new Date('2026-10-30T18:30:00Z');
+const BASE_NOW = new Date();
 
 const INITIAL_CONCEPTS = [
   {
@@ -378,6 +378,11 @@ export function getMockDeckById(deckId) {
   if (deck.status === 'processing') {
     const nextProgress = Math.min(1, Number((deck.progress + 0.34).toFixed(2)));
     deck.progress = nextProgress;
+    if (nextProgress >= 0.5 && nextProgress < 1) {
+      deck.concept_count = 2;
+      deck.card_count = 9;
+      deck.due_count = 4;
+    }
     if (nextProgress >= 1) {
       deck.status = 'ready';
       deck.concept_count = 5;

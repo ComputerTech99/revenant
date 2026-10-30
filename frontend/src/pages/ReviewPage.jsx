@@ -33,20 +33,18 @@ const TYPE_LABELS = {
 function CardSkeleton() {
   return (
     <div
-      className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2 animate-pulse"
+      className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex flex-col gap-6 animate-pulse"
       aria-label="Loading review card"
     >
-      <div className="rounded-lg bg-[#272727] p-6 flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div className="h-6 w-32 rounded-full bg-[#313131]" />
-          <div className="h-6 w-20 rounded-full bg-[#313131]" />
-        </div>
-        <div className="h-8 w-3/4 rounded bg-[#313131]" />
-        <div className="grid grid-cols-1 gap-3">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-12 w-full rounded-lg bg-[#313131]" />
-          ))}
-        </div>
+      <div className="flex items-center justify-between">
+        <div className="h-6 w-32 rounded-full bg-[#272727]" />
+        <div className="h-4 w-24 rounded bg-[#272727]" />
+      </div>
+      <div className="h-8 w-3/4 rounded bg-[#272727]" />
+      <div className="grid grid-cols-1 gap-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-12 w-full rounded-lg bg-[#272727]" />
+        ))}
       </div>
     </div>
   );
@@ -55,18 +53,16 @@ function CardSkeleton() {
 function ExplainFeedbackSkeleton() {
   return (
     <div
-      className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2 animate-pulse"
+      className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex flex-col gap-3 animate-pulse"
       aria-label="Gemma is grading your explanation"
     >
-      <div className="rounded-lg bg-[#272727] p-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="h-5 w-44 rounded bg-[#313131]" />
-          <div className="h-5 w-16 rounded-full bg-[#313131]" />
-        </div>
-        <div className="h-4 w-full rounded bg-[#313131]" />
-        <div className="h-4 w-4/5 rounded bg-[#313131]" />
-        <div className="h-6 w-28 rounded-full bg-[#313131] mt-1" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="h-5 w-44 rounded bg-[#272727]" />
+        <div className="h-5 w-16 rounded-full bg-[#272727]" />
       </div>
+      <div className="h-4 w-full rounded bg-[#272727]" />
+      <div className="h-4 w-4/5 rounded bg-[#272727]" />
+      <div className="h-6 w-28 rounded-full bg-[#272727] mt-1" />
     </div>
   );
 }
@@ -137,23 +133,25 @@ export default function ReviewPage({ stats, onStatsChange }) {
     }
   }, [currentCard, feedbackState, sessionDone]);
 
-  const recordDueBucket = (nextDueIso, grade) => {
-    setDueBuckets((prev) => {
+  const recordDueBucket = useCallback(
+    (nextDueIso, grade) => {
+      let chosenBucket = 'tomorrow';
       if (nextDueIso) {
         const nowMs = stats?.now ? new Date(stats.now).getTime() : Date.now();
         const dueMs = new Date(nextDueIso).getTime();
         const diffDays = Math.round((dueMs - nowMs) / 86400000);
-        if (diffDays <= 2) {
-          return { ...prev, tomorrow: prev.tomorrow + 1 };
-        }
-        return { ...prev, nextWeek: prev.nextWeek + 1 };
+        chosenBucket = diffDays <= 2 ? 'tomorrow' : 'nextWeek';
+      } else if (grade === 'good' || grade === 'easy') {
+        chosenBucket = 'nextWeek';
       }
-      if (grade === 'good' || grade === 'easy') {
-        return { ...prev, nextWeek: prev.nextWeek + 1 };
-      }
-      return { ...prev, tomorrow: prev.tomorrow + 1 };
-    });
-  };
+      setDueBuckets((prev) => ({
+        ...prev,
+        [chosenBucket]: prev[chosenBucket] + 1,
+      }));
+      return chosenBucket;
+    },
+    [stats?.now]
+  );
 
   const handleMcqSelect = useCallback(
     async (optionText) => {
@@ -172,13 +170,16 @@ export default function ReviewPage({ stats, onStatsChange }) {
         if (isCorrect) {
           setCorrectCount((prev) => prev + 1);
         }
-        recordDueBucket(res.next_due, grade);
+        const bucket = recordDueBucket(res.next_due, grade);
         if (res.stats) {
           onStatsChange?.(res.stats);
         }
+        setSnippetOpen(!isCorrect);
         setFeedbackState({
           isCorrect,
           grade,
+          bucket,
+          concept: res.concept || null,
           xpGained: gained,
           correctAnswer: currentCard.answer,
           source: currentCard.source,
@@ -192,7 +193,7 @@ export default function ReviewPage({ stats, onStatsChange }) {
         setGrading(false);
       }
     },
-    [currentCard, feedbackState, grading, onStatsChange, stats]
+    [currentCard, feedbackState, grading, onStatsChange, recordDueBucket]
   );
 
   const handleClozeSubmit = useCallback(async () => {
@@ -213,13 +214,16 @@ export default function ReviewPage({ stats, onStatsChange }) {
       if (isCorrect) {
         setCorrectCount((prev) => prev + 1);
       }
-      recordDueBucket(res.next_due, grade);
+      const bucket = recordDueBucket(res.next_due, grade);
       if (res.stats) {
         onStatsChange?.(res.stats);
       }
+      setSnippetOpen(!isCorrect);
       setFeedbackState({
         isCorrect,
         grade,
+        bucket,
+        concept: res.concept || null,
         xpGained: gained,
         correctAnswer: currentCard.answer,
         source: currentCard.source,
@@ -232,7 +236,7 @@ export default function ReviewPage({ stats, onStatsChange }) {
     } finally {
       setGrading(false);
     }
-  }, [clozeInput, currentCard, feedbackState, grading, onStatsChange, stats]);
+  }, [clozeInput, currentCard, feedbackState, grading, onStatsChange, recordDueBucket]);
 
   const handleExplainSubmit = useCallback(async () => {
     if (!currentCard || feedbackState || grading) return;
@@ -250,14 +254,17 @@ export default function ReviewPage({ stats, onStatsChange }) {
       if (isCorrect) {
         setCorrectCount((prev) => prev + 1);
       }
-      recordDueBucket(res.next_due, res.grade);
+      const bucket = recordDueBucket(res.next_due, res.grade);
       if (res.stats) {
         onStatsChange?.(res.stats);
       }
+      setSnippetOpen(true);
       setFeedbackState({
         isCorrect,
         grade: res.grade,
+        bucket,
         score: res.score,
+        concept: res.concept || null,
         xpGained: gained,
         correctAnswer: currentCard.answer,
         source: res.source || currentCard.source,
@@ -268,7 +275,7 @@ export default function ReviewPage({ stats, onStatsChange }) {
     } finally {
       setGrading(false);
     }
-  }, [currentCard, explainInput, feedbackState, grading, onStatsChange, stats]);
+  }, [currentCard, explainInput, feedbackState, grading, onStatsChange, recordDueBucket]);
 
   const handleNextCard = useCallback(() => {
     if (!feedbackState) return;
@@ -289,10 +296,12 @@ export default function ReviewPage({ stats, onStatsChange }) {
   const handleMarkEasy = async () => {
     if (!currentCard || !feedbackState || easyApplied) return;
     setEasyApplied(true);
-    setDueBuckets((prev) => ({
-      tomorrow: Math.max(0, prev.tomorrow - 1),
-      nextWeek: prev.nextWeek + 1,
-    }));
+    if (feedbackState.bucket === 'tomorrow') {
+      setDueBuckets((prev) => ({
+        tomorrow: Math.max(0, prev.tomorrow - 1),
+        nextWeek: prev.nextWeek + 1,
+      }));
+    }
     try {
       const res = await submitCardGrade(currentCard.id, 'easy');
       if (res.stats) {
@@ -414,31 +423,29 @@ export default function ReviewPage({ stats, onStatsChange }) {
   if (cards.length === 0) {
     return (
       <div className="max-w-3xl mx-auto px-4 pt-10">
-        <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2">
-          <div className="rounded-lg bg-[#272727] p-8 flex flex-col items-center text-center gap-4">
-            <GhostMascot streak={stats?.streak ?? 1} goalMet={true} size="md" />
-            <h1 className="text-2xl font-bold text-[#EDEDED] text-balance">
-              All caught up for now
-            </h1>
-            <p className="text-sm text-[#9B9B9B] text-pretty max-w-md">
-              No cards are due right now. Visit the concept path to inspect memory health or use time travel to preview future reviews.
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <Link
-                to="/path"
-                className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              >
-                <Graph weight="bold" className="w-5 h-5" />
-                <span>Open concept path</span>
-              </Link>
-              <Link
-                to="/"
-                className="py-2 px-3 rounded-lg bg-[#1F1F1F] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              >
-                <House weight="bold" className="w-5 h-5" />
-                <span>Back home</span>
-              </Link>
-            </div>
+        <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-8 flex flex-col items-center text-center gap-4">
+          <GhostMascot streak={stats?.streak ?? 1} goalMet={true} size="md" />
+          <h1 className="text-2xl font-bold text-[#EDEDED] text-balance">
+            All caught up for now
+          </h1>
+          <p className="text-sm text-[#9B9B9B] text-pretty max-w-md">
+            No cards are due right now. Visit the concept path to inspect memory health or use time travel to preview future reviews.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <Link
+              to={deckId ? `/path?deck_id=${encodeURIComponent(deckId)}` : '/path'}
+              className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <Graph weight="bold" className="w-5 h-5" />
+              <span>Open concept path</span>
+            </Link>
+            <Link
+              to="/"
+              className="py-2 px-3 rounded-lg bg-[#272727] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <House weight="bold" className="w-5 h-5" />
+              <span>Back home</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -455,80 +462,78 @@ export default function ReviewPage({ stats, onStatsChange }) {
           initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={{ duration: 0.4, ease: EASE }}
-          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2"
+          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-8 flex flex-col items-center text-center gap-6"
           aria-labelledby="session-complete-heading"
         >
-          <div className="rounded-lg bg-[#272727] p-8 flex flex-col items-center text-center gap-6">
-            <GhostMascot
-              streak={stats?.streak ?? 1}
-              goalMet={Boolean(stats?.goal_met)}
-              size="lg"
-            />
+          <GhostMascot
+            streak={stats?.streak ?? 1}
+            goalMet={Boolean(stats?.goal_met)}
+            size="lg"
+          />
 
-            <div className="flex flex-col gap-2">
-              <span className="px-3 py-1 rounded-full bg-[#1F1F1F] border border-[#313131] text-xs font-semibold text-amber-400 mx-auto">
-                {stats?.goal_met ? 'Goal reached.' : 'Session complete.'}
+          <div className="flex flex-col gap-2">
+            <span className="px-3 py-1 rounded-full bg-[#272727] border border-[#313131] text-xs font-semibold text-amber-400 mx-auto">
+              {stats?.goal_met ? 'Goal reached.' : 'Session complete.'}
+            </span>
+            <h1
+              id="session-complete-heading"
+              className="text-3xl font-bold text-[#EDEDED] text-balance"
+            >
+              {stats?.goal_met
+                ? 'Goal reached. Your notes stay sharp.'
+                : 'Review session complete.'}
+            </h1>
+            <p className="text-base text-[#9B9B9B] text-pretty">
+              <span className="font-mono font-semibold text-[#EDEDED]">
+                {dueBuckets.tomorrow}
+              </span>{' '}
+              cards return tomorrow,{' '}
+              <span className="font-mono font-semibold text-[#EDEDED]">
+                {dueBuckets.nextWeek}
+              </span>{' '}
+              next week
+            </p>
+          </div>
+
+          <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-lg bg-[#272727] border border-[#313131] p-4 flex flex-col items-center gap-1">
+              <span className="text-xs text-[#9B9B9B]">XP gained</span>
+              <span className="font-mono text-2xl font-bold text-amber-400 inline-flex items-center gap-1">
+                <Lightning weight="fill" className="w-5 h-5" />
+                +{sessionXp}
               </span>
-              <h1
-                id="session-complete-heading"
-                className="text-3xl font-bold text-[#EDEDED] text-balance"
-              >
-                {stats?.goal_met
-                  ? 'Goal reached. Your notes stay sharp.'
-                  : 'Review session complete.'}
-              </h1>
-              <p className="text-base text-[#9B9B9B] text-pretty">
-                <span className="font-mono font-semibold text-[#EDEDED]">
-                  {dueBuckets.tomorrow}
-                </span>{' '}
-                cards return tomorrow,{' '}
-                <span className="font-mono font-semibold text-[#EDEDED]">
-                  {dueBuckets.nextWeek}
-                </span>{' '}
-                next week
-              </p>
             </div>
 
-            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-lg bg-[#1F1F1F] border border-[#313131] p-4 flex flex-col items-center gap-1">
-                <span className="text-xs text-[#9B9B9B]">XP gained</span>
-                <span className="font-mono text-2xl font-bold text-amber-400 inline-flex items-center gap-1">
-                  <Lightning weight="fill" className="w-5 h-5" />
-                  +{sessionXp}
-                </span>
-              </div>
-
-              <div className="rounded-lg bg-[#1F1F1F] border border-[#313131] p-4 flex flex-col items-center gap-1">
-                <span className="text-xs text-[#9B9B9B]">Session accuracy</span>
-                <span className="font-mono text-2xl font-bold text-[#EDEDED]">
-                  {accuracyPct}%
-                </span>
-              </div>
-
-              <div className="rounded-lg bg-[#1F1F1F] border border-[#313131] p-4 flex flex-col items-center gap-1">
-                <span className="text-xs text-[#9B9B9B]">Cards reviewed</span>
-                <span className="font-mono text-2xl font-bold text-[#EDEDED]">
-                  {answeredCount}
-                </span>
-              </div>
+            <div className="rounded-lg bg-[#272727] border border-[#313131] p-4 flex flex-col items-center gap-1">
+              <span className="text-xs text-[#9B9B9B]">Accuracy</span>
+              <span className="font-mono text-2xl font-bold text-[#EDEDED]">
+                {accuracyPct}%
+              </span>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <Link
-                to="/path"
-                className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              >
-                <Graph weight="bold" className="w-5 h-5" />
-                <span>View concept path</span>
-              </Link>
-              <Link
-                to="/"
-                className="py-2 px-3 rounded-lg bg-[#1F1F1F] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              >
-                <House weight="bold" className="w-5 h-5" />
-                <span>Return home</span>
-              </Link>
+            <div className="rounded-lg bg-[#272727] border border-[#313131] p-4 flex flex-col items-center gap-1">
+              <span className="text-xs text-[#9B9B9B]">Reviewed</span>
+              <span className="font-mono text-2xl font-bold text-[#EDEDED]">
+                {answeredCount}
+              </span>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <Link
+              to={deckId ? `/path?deck_id=${encodeURIComponent(deckId)}` : '/path'}
+              className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <Graph weight="bold" className="w-5 h-5" />
+              <span>View concept path</span>
+            </Link>
+            <Link
+              to="/"
+              className="py-2 px-3 rounded-lg bg-[#272727] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <House weight="bold" className="w-5 h-5" />
+              <span>Return home</span>
+            </Link>
           </div>
         </motion.section>
       </div>
@@ -582,120 +587,121 @@ export default function ReviewPage({ stats, onStatsChange }) {
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.3, ease: EASE }}
           aria-label="Review question"
-          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2"
+          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex flex-col gap-6"
         >
-          <div className="rounded-lg bg-[#272727] p-6 flex flex-col gap-6">
-            <div className="flex items-center justify-between gap-2">
-              <span className="px-3 py-1 rounded-full bg-[#1F1F1F] border border-[#313131] text-xs font-semibold text-amber-400">
-                {TYPE_LABELS[currentCard.type] || 'Review card'}
-              </span>
-              {currentCard.type === 'mcq' && !feedbackState && (
-                <span className="text-xs text-[#9B9B9B]">
-                  Press keys <span className="font-mono text-[#EDEDED]">1</span> to{' '}
-                  <span className="font-mono text-[#EDEDED]">4</span>
-                </span>
-              )}
-              {currentCard.type !== 'mcq' && !feedbackState && (
-                <span className="text-xs text-[#9B9B9B]">
-                  Press <span className="font-mono text-[#EDEDED]">Enter</span> to submit
-                </span>
-              )}
-            </div>
-
-            {currentCard.type === 'cloze' ? (
-              renderClozePrompt(currentCard.prompt)
-            ) : (
-              <h1 className="text-xl sm:text-2xl font-semibold text-[#EDEDED] leading-snug text-balance">
-                {currentCard.prompt}
-              </h1>
-            )}
-
-            {currentCard.type === 'mcq' && Array.isArray(currentCard.options) && (
-              <div className="grid grid-cols-1 gap-3">
-                {currentCard.options.map((option, idx) => {
-                  const isChosen = selectedOption === option;
-                  const isRightOption =
-                    feedbackState && option.trim() === currentCard.answer.trim();
-                  const isWrongChosen =
-                    feedbackState && isChosen && !feedbackState.isCorrect;
-
-                  let cardStyle =
-                    'bg-[#1F1F1F] border-[#313131] text-[#EDEDED] hover:bg-[#313131]';
-                  if (isRightOption) {
-                    cardStyle =
-                      'bg-[#1F1F1F] border-amber-400 text-[#EDEDED] shadow-[0_0_20px_rgba(245,158,11,0.18)]';
-                  } else if (isWrongChosen) {
-                    cardStyle = 'bg-[#1F1F1F] border-red-500 text-red-300';
-                  }
-
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      disabled={Boolean(feedbackState) || grading}
-                      onClick={() => handleMcqSelect(option)}
-                      className={`w-full rounded-lg border p-3 text-left flex items-center justify-between gap-3 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${cardStyle}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="w-7 h-7 rounded-full bg-[#131209] border border-[#313131] font-mono text-xs font-semibold text-amber-400 flex items-center justify-center shrink-0">
-                          {idx + 1}
-                        </span>
-                        <span className="text-base font-medium text-pretty">{option}</span>
-                      </div>
-                      {isRightOption && (
-                        <CheckCircle weight="fill" className="w-5 h-5 text-amber-400 shrink-0" />
-                      )}
-                      {isWrongChosen && (
-                        <XCircle weight="fill" className="w-5 h-5 text-red-400 shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {currentCard.type === 'cloze' && !feedbackState && (
-              <div className="flex items-center justify-end">
-                <button
-                  type="button"
-                  disabled={!clozeInput.trim() || grading}
-                  onClick={handleClozeSubmit}
-                  className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
-                >
-                  <span>Check answer</span>
-                  <ArrowRight weight="bold" className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            {currentCard.type === 'explain' && (
-              <div className="flex flex-col gap-3">
-                <textarea
-                  ref={explainInputRef}
-                  rows={4}
-                  value={explainInput}
-                  disabled={Boolean(feedbackState) || grading}
-                  onChange={(e) => setExplainInput(e.target.value)}
-                  placeholder="Write your explanation in your own words. Press Enter to submit."
-                  aria-label="Your explanation"
-                  className="w-full rounded-lg bg-[#131209] border border-[#313131] p-3 text-base text-[#EDEDED] placeholder:text-[#9B9B9B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                />
-                {!feedbackState && (
-                  <div className="flex items-center justify-end">
-                    <button
-                      type="button"
-                      disabled={!explainInput.trim() || grading}
-                      onClick={handleExplainSubmit}
-                      className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
-                    >
-                      <span>{grading ? 'Grading with Gemma' : 'Grade explanation'}</span>
-                      <ArrowRight weight="bold" className="w-4 h-4" />
-                    </button>
-                  </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="px-3 py-1 rounded-full bg-[#272727] border border-[#313131] text-xs font-semibold text-amber-400">
+              {TYPE_LABELS[currentCard.type] || 'Review card'}
+            </span>
+            {!feedbackState && (
+              <span className="text-xs text-[#9B9B9B]">
+                {currentCard.type === 'mcq' ? (
+                  <>
+                    Keys <span className="font-mono text-[#EDEDED]">1</span> to{' '}
+                    <span className="font-mono text-[#EDEDED]">4</span>
+                  </>
+                ) : (
+                  <>
+                    Press <span className="font-mono text-[#EDEDED]">Enter</span> to submit
+                  </>
                 )}
-              </div>
+              </span>
             )}
           </div>
+
+          {currentCard.type === 'cloze' ? (
+            renderClozePrompt(currentCard.prompt)
+          ) : (
+            <h1 className="text-xl sm:text-2xl font-semibold text-[#EDEDED] leading-snug text-balance">
+              {currentCard.prompt}
+            </h1>
+          )}
+
+          {currentCard.type === 'mcq' && Array.isArray(currentCard.options) && (
+            <div className="grid grid-cols-1 gap-3">
+              {currentCard.options.map((option, idx) => {
+                const isChosen = selectedOption === option;
+                const isRightOption =
+                  feedbackState && option.trim() === currentCard.answer.trim();
+                const isWrongChosen =
+                  feedbackState && isChosen && !feedbackState.isCorrect;
+
+                let cardStyle =
+                  'bg-[#272727] border-[#313131] text-[#EDEDED] hover:bg-[#313131]';
+                if (isRightOption) {
+                  cardStyle =
+                    'bg-[#272727] border-amber-400 text-[#EDEDED] shadow-[0_0_20px_rgba(245,158,11,0.16)]';
+                } else if (isWrongChosen) {
+                  cardStyle = 'bg-[#272727] border-red-500 text-red-300';
+                }
+
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    disabled={Boolean(feedbackState) || grading}
+                    onClick={() => handleMcqSelect(option)}
+                    className={`w-full rounded-lg border p-3 text-left flex items-center justify-between gap-3 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${cardStyle}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-7 h-7 rounded-full bg-[#131209] border border-[#313131] font-mono text-xs font-semibold text-amber-400 flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span className="text-base font-medium text-pretty">{option}</span>
+                    </div>
+                    {isRightOption && (
+                      <CheckCircle weight="fill" className="w-5 h-5 text-amber-400 shrink-0" />
+                    )}
+                    {isWrongChosen && (
+                      <XCircle weight="fill" className="w-5 h-5 text-red-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {currentCard.type === 'cloze' && !feedbackState && (
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                disabled={!clozeInput.trim() || grading}
+                onClick={handleClozeSubmit}
+                className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
+              >
+                <span>Check answer</span>
+                <ArrowRight weight="bold" className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {currentCard.type === 'explain' && (
+            <div className="flex flex-col gap-3">
+              <textarea
+                ref={explainInputRef}
+                rows={4}
+                value={explainInput}
+                disabled={Boolean(feedbackState) || grading}
+                onChange={(e) => setExplainInput(e.target.value)}
+                placeholder="Write your explanation in your own words. Press Enter to submit."
+                aria-label="Your explanation"
+                className="w-full rounded-lg bg-[#131209] border border-[#313131] p-3 text-base text-[#EDEDED] placeholder:text-[#9B9B9B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              />
+              {!feedbackState && (
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    disabled={!explainInput.trim() || grading}
+                    onClick={handleExplainSubmit}
+                    className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
+                  >
+                    <span>{grading ? 'Grading with Gemma' : 'Grade explanation'}</span>
+                    <ArrowRight weight="bold" className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </motion.section>
       </AnimatePresence>
 
@@ -707,117 +713,112 @@ export default function ReviewPage({ stats, onStatsChange }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: EASE }}
           aria-live="polite"
-          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2"
+          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex flex-col gap-4"
         >
-          <div className="rounded-lg bg-[#272727] p-6 flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                {feedbackState.isCorrect ? (
-                  <CheckCircle weight="fill" className="w-6 h-6 text-amber-400 shrink-0" />
-                ) : (
-                  <XCircle weight="fill" className="w-6 h-6 text-red-400 shrink-0" />
-                )}
-                <span className="text-lg font-bold text-[#EDEDED]">
-                  {feedbackState.grade === 'good'
-                    ? 'Correct'
-                    : feedbackState.grade === 'hard'
-                      ? 'Partially correct'
-                      : 'Needs another look'}
-                </span>
-                {typeof feedbackState.score === 'number' && (
-                  <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-[#313131] font-mono text-xs text-amber-400">
-                    Score {Math.round(feedbackState.score * 100)}%
-                  </span>
-                )}
-              </div>
-
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#131209] border border-[#313131] font-mono text-xs font-semibold text-amber-400">
-                <Lightning weight="fill" className="w-3.5 h-3.5" />
-                +{feedbackState.xpGained} XP
-              </span>
-            </div>
-
-            <p className="text-sm text-[#9B9B9B] text-pretty">{feedbackState.feedbackText}</p>
-
-            <div className="rounded-lg bg-[#1F1F1F] border border-[#313131] p-3 flex flex-col gap-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[#9B9B9B]">
-                Grounded answer
-              </span>
-              <p className="text-sm font-medium text-[#EDEDED] text-pretty">
-                {feedbackState.correctAnswer}
-              </p>
-            </div>
-
-            {feedbackState.source && (
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSnippetOpen((prev) => !prev)}
-                  aria-expanded={snippetOpen}
-                  className="w-max px-3 py-1 rounded-full bg-[#131209] hover:bg-[#1F1F1F] border border-amber-400/50 text-xs font-semibold text-amber-400 inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                >
-                  <BookOpen weight="bold" className="w-4 h-4" />
-                  <span>
-                    From page <span className="font-mono">{feedbackState.source.page}</span>
-                  </span>
-                  {snippetOpen ? (
-                    <CaretUp weight="bold" className="w-3.5 h-3.5" />
-                  ) : (
-                    <CaretDown weight="bold" className="w-3.5 h-3.5" />
-                  )}
-                </button>
-
-                {snippetOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, ease: EASE }}
-                    className="rounded-lg bg-[#131209] border border-[#313131] p-4 flex flex-col gap-1"
-                  >
-                    <span className="text-xs font-semibold text-[#9B9B9B]">
-                      Verbatim PDF excerpt · Page{' '}
-                      <span className="font-mono text-[#EDEDED]">
-                        {feedbackState.source.page}
-                      </span>
-                    </span>
-                    <p className="text-sm text-[#EDEDED] text-pretty leading-relaxed">
-                      “{feedbackState.source.snippet}”
-                    </p>
-                  </motion.div>
-                )}
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              {feedbackState.isCorrect && currentCard.type !== 'explain' ? (
-                <button
-                  type="button"
-                  disabled={easyApplied}
-                  onClick={handleMarkEasy}
-                  className="py-2 px-3 rounded-lg bg-[#1F1F1F] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
-                >
-                  <Sparkle weight="fill" className="w-4 h-4 text-amber-400" />
-                  <span>{easyApplied ? 'Scheduled as easy' : 'Mark as easy'}</span>
-                </button>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {feedbackState.isCorrect ? (
+                <CheckCircle weight="fill" className="w-6 h-6 text-amber-400 shrink-0" />
               ) : (
-                <div />
+                <XCircle weight="fill" className="w-6 h-6 text-red-400 shrink-0" />
               )}
+              <span className="text-lg font-bold text-[#EDEDED]">
+                {feedbackState.grade === 'good'
+                  ? 'Correct'
+                  : feedbackState.grade === 'hard'
+                    ? 'Partially correct'
+                    : 'Needs another look'}
+              </span>
+              {typeof feedbackState.score === 'number' && (
+                <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-[#313131] font-mono text-xs text-amber-400">
+                  Score {Math.round(feedbackState.score * 100)}%
+                </span>
+              )}
+            </div>
 
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#131209] border border-[#313131] font-mono text-xs font-semibold text-amber-400">
+              <Lightning weight="fill" className="w-3.5 h-3.5" />
+              +{feedbackState.xpGained} XP
+            </span>
+          </div>
+
+          <p className="text-sm text-[#9B9B9B] text-pretty">{feedbackState.feedbackText}</p>
+
+          <div className="rounded-lg bg-[#272727] border border-[#313131] p-3 flex flex-col gap-1">
+            <span className="text-xs font-medium text-[#9B9B9B]">Grounded answer</span>
+            <p className="text-sm font-medium text-[#EDEDED] text-pretty">
+              {feedbackState.correctAnswer}
+            </p>
+          </div>
+
+          {feedbackState.source && (
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={handleNextCard}
-                className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                onClick={() => setSnippetOpen((prev) => !prev)}
+                aria-expanded={snippetOpen}
+                className="w-max px-3 py-1 rounded-full bg-[#131209] hover:bg-[#272727] border border-amber-400/50 text-xs font-semibold text-amber-400 inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               >
+                <BookOpen weight="bold" className="w-4 h-4" />
                 <span>
-                  {currentIndex + 1 < cards.length ? 'Continue (Enter)' : 'Finish session (Enter)'}
+                  From page <span className="font-mono">{feedbackState.source.page}</span>
                 </span>
-                <ArrowRight weight="bold" className="w-4 h-4" />
+                {snippetOpen ? (
+                  <CaretUp weight="bold" className="w-3.5 h-3.5" />
+                ) : (
+                  <CaretDown weight="bold" className="w-3.5 h-3.5" />
+                )}
               </button>
+
+              {snippetOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, ease: EASE }}
+                  className="rounded-lg bg-[#131209] border border-[#313131] p-4 flex flex-col gap-1"
+                >
+                  <span className="text-xs font-medium text-[#9B9B9B]">
+                    Verbatim PDF excerpt · Page{' '}
+                    <span className="font-mono text-[#EDEDED]">
+                      {feedbackState.source.page}
+                    </span>
+                  </span>
+                  <p className="text-sm text-[#EDEDED] text-pretty leading-relaxed">
+                    “{feedbackState.source.snippet}”
+                  </p>
+                </motion.div>
+              )}
             </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            {feedbackState.isCorrect && currentCard.type !== 'explain' ? (
+              <button
+                type="button"
+                disabled={easyApplied}
+                onClick={handleMarkEasy}
+                className="py-2 px-3 rounded-lg bg-[#272727] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
+              >
+                <Sparkle weight="fill" className="w-4 h-4 text-amber-400" />
+                <span>{easyApplied ? 'Scheduled as easy' : 'Mark as easy'}</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <button
+              type="button"
+              onClick={handleNextCard}
+              className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <span>
+                {currentIndex + 1 < cards.length ? 'Continue (Enter)' : 'Finish session (Enter)'}
+              </span>
+              <ArrowRight weight="bold" className="w-4 h-4" />
+            </button>
           </div>
         </motion.section>
       )}
     </div>
   );
 }
-

@@ -56,21 +56,21 @@
 
 ---
 
-## 1:15 – 2:15 · Grounded Review Session (MCQ, Cloze, Explain & Page Citations)
+## 1:15 – 2:15 · Grounded Review Session (MCQ, Explain, Cloze & Page Citations)
 
-> **Why Review comes before Path on the live backend**: Newly seeded cards start with `status: "new"` (`last_reviewed_at = null`). Reviewing 2–3 cards sets their SM-2 `last_reviewed_at` timestamp and brings their concept health to `100%`, so when you time-travel on the Path screen next, those exact concepts visibly decay and crack.
+> **Seeded demo schedule**: `python -m app.seed` pre-populates a 4-day streak, 1 streak freeze, `2/5` reviews completed today, all 4 concept health states on the Path (`mastered`, `learning`, `shaky`, `new`), and **3 due cards** (`mcq` → `explain` → `cloze`) so finishing those 3 cards hits the 5-card daily goal on stage.
 
 1. **Card 1 — Multiple choice (`mcq`)**:
-   - Press key **`1`** (or click the correct option) to answer in a single keystroke.
-   - **Crucial click**: Click the **From page N** chip in the feedback block to expand the **Verbatim PDF excerpt**.
+   - Press key **`1`** (*"Red and blue"*) or click the option to answer in a single keystroke.
+   - **Crucial click**: Click the **From page 7** chip in the feedback block to expand the **Verbatim PDF excerpt**.
    - **What to say**: "Every card is validated against the PDF chunk before saving—if the verbatim snippet isn't in your notes, Revenant rejects the card."
    - Press **`Enter`** to continue.
 2. **Card 2 — Explain it back (`explain`)**:
-   - Type a one-sentence explanation (e.g., *"Light energy splits water into oxygen, protons and electrons"*) and press **`Enter`**.
-   - Point out the **layout-shaped skeleton feedback block** while Gemma grades the response (`POST /api/review/:id/explain`), returning a 0–1 score, two-sentence feedback, and the grounded page citation.
+   - Type a one-sentence explanation (e.g., *"It uses ATP and NADPH from the light dependent reactions to reduce carbon dioxide into sugar"*) and press **`Enter`**.
+   - Point out the **layout-shaped skeleton feedback block** while Gemma grades the response (`POST /api/review/:id/explain`), returning a 0–1 score, two-sentence feedback, and the grounded **From page 5** citation.
 3. **Card 3 — Fill the blank (`cloze`)**:
-   - Type the missing word (e.g., `stroma` or `reflects`) into the inline blank and press **`Enter`**.
-   - Finish the remaining cards to reach **Session End**: calm copy (*"Goal reached."*), XP gained, session accuracy, *"N cards return tomorrow, M next week"*, and confetti.
+   - Type the missing word **`stroma`** into the inline blank and press **`Enter`**.
+   - Press **`Enter`** to finish the session and reach **Session End**: calm copy (*"Goal reached."*), XP gained (+20 daily goal bonus included), session accuracy, *"N cards return tomorrow, M next week"*, Ghost solidification, and confetti.
 
 ---
 

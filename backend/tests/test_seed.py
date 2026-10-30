@@ -13,13 +13,15 @@ def test_seed_is_idempotent_and_populates_all_health_tiers():
     assert decks[0]["deck_id"] == deck_id
     assert decks[0]["due_count"] == 3
     assert decks[0]["mastery_pct"] == 25.0
+    assert decks[0]["card_count"] == 8
 
     path = main.deck_path(deck_id)
     statuses = [c["status"] for c in path]
     assert statuses == ["mastered", "learning", "shaky", "new"]
+    assert all(c["card_count"] == 2 for c in path)
 
     due = main.due_cards(deck_id=deck_id)
-    assert {c["type"] for c in due} == {"mcq", "cloze", "explain"}
+    assert [c["type"] for c in due] == ["mcq", "explain", "cloze"]
 
     stats_before = main.get_stats()
     assert stats_before["streak"] == 4

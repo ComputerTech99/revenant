@@ -108,6 +108,16 @@
             "page": 9,
             "snippet": "light intensity, carbon dioxide concentration and temperature"
           }
+        },
+        {
+          "type": "cloze",
+          "prompt": "Green plants use light energy to make glucose from ____ and water.",
+          "options": null,
+          "answer": "carbon dioxide",
+          "source": {
+            "page": 9,
+            "snippet": "use light energy to make glucose from carbon dioxide and water"
+          }
         }
       ]
     }

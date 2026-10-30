@@ -11,7 +11,7 @@
 @theme {
   --font-sans: "Geist Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
-  --color-base: #131209;
+  --color-page: #131209;
   --color-surface: #1F1F1F;
   --color-raised: #272727;
   --color-border: #313131;

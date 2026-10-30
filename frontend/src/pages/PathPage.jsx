@@ -9,14 +9,11 @@ import {
   ClockClockwise,
   FastForward,
   Lock,
-  ShieldCheck,
-  Sparkle,
-  Warning,
   WarningCircle,
 } from '@phosphor-icons/react';
 import {
   fetchDeckPath,
-   resetTimewarp,
+  resetTimewarp,
   timewarp,
 } from '../api/client.js';
 
@@ -81,11 +78,10 @@ function getNodeVisualState(concept) {
   if (concept.status === 'new' || health === null || health === undefined) {
     return {
       tier: 'new',
-      label: 'Locked · New',
+      label: 'New · Locked',
       opacity: 0.65,
       badgeRing: 'border-dashed border-[#313131] bg-[#131209] text-[#9B9B9B]',
       cardBorder: 'border-dashed border-[#313131] bg-[#131209]',
-      glow: '',
       cracks: 'none',
       textAccent: 'text-[#9B9B9B]',
     };
@@ -93,13 +89,12 @@ function getNodeVisualState(concept) {
   if (health >= 0.85) {
     return {
       tier: 'solid',
-      label: 'Solid · Mastered',
+      label: concept.status === 'mastered' ? 'Solid · Mastered' : 'Solid · Learning',
       opacity: 1,
       badgeRing:
-        'border-amber-400 bg-[#272727] text-amber-400 shadow-[0_0_28px_rgba(245,158,11,0.35)]',
+        'border-amber-400 bg-[#272727] text-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.3)]',
       cardBorder:
-        'border-amber-400/70 bg-[#1F1F1F] shadow-[0_0_28px_rgba(245,158,11,0.16)]',
-      glow: ' amber',
+        'border-amber-400/70 bg-[#1F1F1F] shadow-[0_0_24px_rgba(245,158,11,0.14)]',
       cracks: 'none',
       textAccent: 'text-amber-400',
     };
@@ -108,10 +103,9 @@ function getNodeVisualState(concept) {
     return {
       tier: 'faded',
       label: 'Slightly faded · Learning',
-      opacity: 0.84,
+      opacity: 0.85,
       badgeRing: 'border-amber-400/40 bg-[#272727] text-[#EDEDED]',
       cardBorder: 'border-[#313131] bg-[#1F1F1F]',
-      glow: '',
       cracks: 'none',
       textAccent: 'text-[#EDEDED]',
     };
@@ -120,11 +114,10 @@ function getNodeVisualState(concept) {
     return {
       tier: 'cracked',
       label: 'Cracked · Shaky',
-      opacity: 0.74,
+      opacity: 0.75,
       badgeRing:
-        'border-red-500/70 bg-[#1F1F1F] text-red-400 shadow-[0_0_18px_rgba(239,68,68,0.2)]',
+        'border-red-500/70 bg-[#1F1F1F] text-red-400 shadow-[0_0_16px_rgba(239,68,68,0.2)]',
       cardBorder: 'border-red-500/50 bg-[#1F1F1F]',
-      glow: 'red',
       cracks: 'light',
       textAccent: 'text-red-400',
     };
@@ -132,30 +125,39 @@ function getNodeVisualState(concept) {
   return {
     tier: 'ghostly',
     label: 'Heavily cracked · Ghostly',
-    opacity: 0.48,
+    opacity: 0.5,
     badgeRing:
-      'border-red-500 bg-[#131209] text-red-400 shadow-[0_0_24px_rgba(239,68,68,0.28)]',
+      'border-red-500 bg-[#131209] text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.25)]',
     cardBorder: 'border-red-500/80 bg-[#1F1F1F]',
-    glow: 'red',
     cracks: 'heavy',
     textAccent: 'text-red-400',
   };
 }
 
+function formatNextDue(concept, nowIso) {
+  if (concept.status === 'new' || concept.health === null || concept.health === undefined || !concept.next_due) {
+    return 'Unscheduled';
+  }
+  const refMs = nowIso ? new Date(nowIso).getTime() : Date.now();
+  const dueMs = new Date(concept.next_due).getTime();
+  if (Number.isNaN(dueMs)) return 'Due now';
+  const diffDays = Math.ceil((dueMs - refMs) / 86400000);
+  if (diffDays <= 0 || concept.health < 0.7) return 'Due now';
+  return `Due in ${diffDays}d`;
+}
+
 function PathSkeleton() {
   return (
-    <div className="flex flex-col items-center gap-8 py-6" aria-label="Loading concept path">
+    <div className="flex flex-col items-center gap-6 py-4" aria-label="Loading concept path">
       {[0, 1, 2, 3].map((idx) => (
         <div
           key={idx}
-          className="w-full max-w-xl rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2 animate-pulse"
+          className="w-full max-w-xl rounded-2xl bg-[#1F1F1F] border border-[#313131] p-4 flex items-center gap-4 animate-pulse"
         >
-          <div className="rounded-lg bg-[#272727] p-4 flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-[#313131] shrink-0" />
-            <div className="flex flex-col gap-2 w-full">
-              <div className="h-5 w-48 rounded bg-[#313131]" />
-              <div className="h-3 w-32 rounded bg-[#313131]" />
-            </div>
+          <div className="w-16 h-16 rounded-full bg-[#272727] shrink-0" />
+          <div className="flex flex-col gap-2 w-full">
+            <div className="h-5 w-44 rounded bg-[#272727]" />
+            <div className="h-3 w-28 rounded bg-[#272727]" />
           </div>
         </div>
       ))}
@@ -183,28 +185,25 @@ export default function PathPage({ decks, stats, onRefreshAll }) {
     }
   }, [decks, searchParams, selectedDeckId]);
 
-  const loadPath = useCallback(
-    async (targetDeckId, showSkeleton = true) => {
-      if (!targetDeckId) return;
-      if (showSkeleton) {
-        setLoading(true);
-      }
-      setError('');
-      try {
-        const data = await fetchDeckPath(targetDeckId);
-        setConcepts(data || []);
-        setSelectedConceptId((prev) => {
-          if (prev && (data || []).some((c) => c.id === prev)) return prev;
-          return data?.[0]?.id || null;
-        });
-      } catch (err) {
-        setError(err.message || 'Could not load concept path for this deck.');
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const loadPath = useCallback(async (targetDeckId, showSkeleton = true) => {
+    if (!targetDeckId) return;
+    if (showSkeleton) {
+      setLoading(true);
+    }
+    setError('');
+    try {
+      const data = await fetchDeckPath(targetDeckId);
+      setConcepts(data || []);
+      setSelectedConceptId((prev) => {
+        if (prev && (data || []).some((c) => c.id === prev)) return prev;
+        return data?.[0]?.id || null;
+      });
+    } catch (err) {
+      setError(err.message || 'Could not load concept path for this deck.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadPath(selectedDeckId, true);
@@ -256,17 +255,23 @@ export default function PathPage({ decks, stats, onRefreshAll }) {
     });
   };
 
+  const serverOffsetDays = stats?.now
+    ? Math.max(0, Math.round((new Date(stats.now).getTime() - Date.now()) / 86400000))
+    : warpedDays;
+
+  const selectedDeck = (decks || []).find((d) => d.deck_id === selectedDeckId) || null;
+  const deckDueCards = selectedDeck?.due_count ?? 0;
+
   return (
-    <div className="max-w-5xl mx-auto px-4 pt-10 flex flex-col gap-10">
+    <div className="max-w-5xl mx-auto px-4 pt-10 flex flex-col gap-8">
       <motion.section {...REVEAL_PROPS} className="flex flex-col gap-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex flex-col gap-2 max-w-[680px]">
+          <div className="flex flex-col gap-1 max-w-[680px]">
             <h1 className="text-3xl sm:text-4xl font-bold text-[#EDEDED] text-balance">
-              Concept memory path
+              Concept path
             </h1>
-            <p className="text-base text-[#9B9B9B] text-pretty">
-              Every node reflects your live retention health. As days pass without review, solid nodes fade and crack.
-              Tap any concept to inspect its summary and grounded PDF pages.
+            <p className="text-sm sm:text-base text-[#9B9B9B] text-pretty">
+              Nodes fade and crack as retention decays. Tap any concept to inspect its grounded summary and PDF pages.
             </p>
           </div>
 
@@ -278,9 +283,9 @@ export default function PathPage({ decks, stats, onRefreshAll }) {
             <span className="inline-flex items-center gap-1 pl-3 pr-1 py-1 text-xs font-semibold text-amber-400">
               <ClockClockwise weight="bold" className="w-4 h-4" />
               <span>Demo: time travel</span>
-              {warpedDays > 0 && (
+              {serverOffsetDays > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-amber-400/50 font-mono text-xs">
-                  +{warpedDays}d
+                  +{serverOffsetDays}d
                 </span>
               )}
             </span>
@@ -320,35 +325,46 @@ export default function PathPage({ decks, stats, onRefreshAll }) {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
-          {decks && decks.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Select deck">
-              {decks.map((deck) => {
-                const isSelected = deck.deck_id === selectedDeckId;
-                return (
-                  <button
-                    key={deck.deck_id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isSelected}
-                    onClick={() => handleSelectDeck(deck.deck_id)}
-                    className={`py-2 px-3 rounded-lg text-sm font-semibold border transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-                      isSelected
-                        ? 'bg-[#272727] border-amber-400 text-amber-400'
-                        : 'bg-[#1F1F1F] border-[#313131] text-[#9B9B9B] hover:text-[#EDEDED] hover:bg-[#272727]'
-                    }`}
-                  >
-                    {deck.title}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Select deck">
+            {(decks || []).map((deck) => {
+              const isSelected = deck.deck_id === selectedDeckId;
+              return (
+                <button
+                  key={deck.deck_id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => handleSelectDeck(deck.deck_id)}
+                  className={`py-2 px-3 rounded-lg text-sm font-semibold border transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                    isSelected
+                      ? 'bg-[#272727] border-amber-400 text-amber-400'
+                      : 'bg-[#1F1F1F] border-[#313131] text-[#9B9B9B] hover:text-[#EDEDED] hover:bg-[#272727]'
+                  }`}
+                >
+                  {deck.title}
+                </button>
+              );
+            })}
+          </div>
 
-          <div className="text-xs text-[#9B9B9B]">
-            Simulated clock:{' '}
-            <span className="font-mono font-semibold text-[#EDEDED]">
-              {formatClockDate(stats?.now)}
+          <div className="flex flex-wrap items-center gap-3 text-xs text-[#9B9B9B]">
+            <span>
+              Clock:{' '}
+              <span className="font-mono font-semibold text-[#EDEDED]">
+                {formatClockDate(stats?.now)}
+              </span>
             </span>
+            {deckDueCards > 0 && (
+              <Link
+                to={`/review?deck_id=${encodeURIComponent(selectedDeckId)}`}
+                className="px-3 py-1 rounded-full bg-amber-400 text-[#131209] font-semibold inline-flex items-center gap-1 hover:bg-amber-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              >
+                <span>Review</span>
+                <span className="font-mono">{deckDueCards}</span>
+                <span>due</span>
+                <ArrowRight weight="bold" className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </div>
         </div>
       </motion.section>
@@ -366,18 +382,16 @@ export default function PathPage({ decks, stats, onRefreshAll }) {
       {loading ? (
         <PathSkeleton />
       ) : concepts.length === 0 ? (
-        <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2">
-          <div className="rounded-lg bg-[#272727] p-8 text-center flex flex-col items-center gap-3">
-            <p className="text-base font-semibold text-[#EDEDED]">
-              No concepts found for this deck
-            </p>
-            <Link
-              to="/"
-              className="py-2 px-3 rounded-lg bg-amber-400 text-[#131209] text-base font-semibold"
-            >
-              Return home
-            </Link>
-          </div>
+        <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-8 text-center flex flex-col items-center gap-3">
+          <p className="text-base font-semibold text-[#EDEDED]">
+            No concepts found for this deck
+          </p>
+          <Link
+            to="/"
+            className="py-2 px-3 rounded-lg bg-amber-400 text-[#131209] text-base font-semibold"
+          >
+            Return home
+          </Link>
         </div>
       ) : (
         <section aria-label="Winding concept path" className="relative py-4">
@@ -389,6 +403,7 @@ export default function PathPage({ decks, stats, onRefreshAll }) {
           <div className="flex flex-col gap-6 relative z-10">
             {concepts.map((concept, index) => {
               const visual = getNodeVisualState(concept);
+              const dueLabel = formatNextDue(concept, stats?.now);
               const isExpanded = selectedConceptId === concept.id;
               const healthPct =
                 concept.health !== null && concept.health !== undefined
@@ -456,13 +471,15 @@ export default function PathPage({ decks, stats, onRefreshAll }) {
                           {concept.name}
                         </h2>
 
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <span className="text-xs text-[#9B9B9B]">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#9B9B9B]">
+                          <span>
                             Pages{' '}
                             <span className="font-mono text-[#EDEDED]">
                               {(concept.pages || []).join(', ')}
                             </span>
                           </span>
+                          <span>·</span>
+                          <span className="font-mono">{dueLabel}</span>
                         </div>
                       </div>
                     </button>
@@ -501,7 +518,7 @@ export default function PathPage({ decks, stats, onRefreshAll }) {
                                 className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-sm font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                               >
                                 <Cards weight="bold" className="w-4 h-4" />
-                                <span>Review concept cards</span>
+                                <span>Review concept</span>
                                 <ArrowRight weight="bold" className="w-4 h-4" />
                               </Link>
                             </div>

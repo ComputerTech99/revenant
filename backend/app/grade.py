@@ -42,12 +42,14 @@ def tidy_feedback(text: str) -> str:
     return " ".join(sentences[:2])
 
 
+def content_words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in STOPWORDS and len(w) > 2}
+
+
 def overlap_score(student: str, model_answer: str) -> float:
     """Share of the model answer's content words that appear in the student's answer."""
-    def words(text):
-        return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in STOPWORDS and len(w) > 2}
-    key = words(model_answer)
-    return len(key & words(student)) / len(key) if key else 0.0
+    key = content_words(model_answer)
+    return len(key & content_words(student)) / len(key) if key else 0.0
 
 
 def grade_explanation(card, student_answer: str) -> tuple[float, str]:
@@ -71,7 +73,20 @@ def grade_explanation(card, student_answer: str) -> tuple[float, str]:
     except (llm.LLMError, KeyError, TypeError, ValueError) as exc:
         log.warning("Model grading failed, using word overlap: %s", exc)
         score = round(overlap_score(student, card["answer"]), 2)
-        return score, (
-            "The model is not available, so this score counts matching key words. "
-            "Compare your answer with the source text below."
-        )
+        try:
+            snippet = card["source_snippet"]
+        except (KeyError, TypeError):
+            snippet = card.get("source", {}).get("snippet", "") if isinstance(card, dict) else ""
+        snippet = (snippet or "").strip().rstrip(".")
+
+        if score >= 0.5:
+            feedback = (
+                f'You covered the core idea well. '
+                f'Review the source note "{snippet}" for the remaining detail.'
+            )
+        else:
+            feedback = (
+                f'Your answer missed key terms from the notes. '
+                f'The text states "{snippet}".'
+            )
+        return score, feedback

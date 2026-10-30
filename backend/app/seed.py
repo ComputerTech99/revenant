@@ -60,16 +60,22 @@ def _apply_demo_schedule(conn, deck_id: str, now_dt) -> None:
                 ),
             )
         elif pos == 1:
-            # Learning (slightly faded): health ~0.78 (days_since=4.7, interval=2), both cards (cloze + explain) due now
-            conn.execute(
-                "UPDATE cards SET interval_days = 2, reps = 2, last_reviewed_at = ?, due_at = ? "
-                "WHERE concept_id = ?",
-                (
-                    db.iso(now_dt - timedelta(hours=113)),
-                    db.iso(now_dt - timedelta(days=1)),
-                    cid,
-                ),
-            )
+            # Learning (slightly faded): health ~0.78 (days_since=4.7, interval=2), both cards (explain + cloze) due now
+            for card in cards:
+                due_target = (
+                    now_dt - timedelta(hours=36)
+                    if card["type"] == "explain"
+                    else now_dt - timedelta(hours=24)
+                )
+                conn.execute(
+                    "UPDATE cards SET interval_days = 2, reps = 2, last_reviewed_at = ?, due_at = ? "
+                    "WHERE id = ?",
+                    (
+                        db.iso(now_dt - timedelta(hours=113)),
+                        db.iso(due_target),
+                        card["id"],
+                    ),
+                )
         elif pos == 2:
             # Shaky (cracked): health ~0.56 (days_since=11, interval=2). The mcq card is due now, the cloze card due tomorrow.
             for card in cards:
@@ -107,6 +113,7 @@ def _seed_demo_stats(conn, deck_id: str, now_dt) -> None:
     db.set_setting(conn, "freezes", 1)
     db.set_setting(conn, "streak_day", yesterday.isoformat())
     db.set_setting(conn, "goal_day", yesterday.isoformat())
+    db.set_setting(conn, "pre_warp_streak", "")
 
     first_card = conn.execute(
         "SELECT id FROM cards WHERE deck_id = ? LIMIT 1",

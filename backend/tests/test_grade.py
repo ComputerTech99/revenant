@@ -36,7 +36,15 @@ def test_falls_back_to_word_overlap_when_model_is_down(monkeypatch):
     monkeypatch.setattr(llm, "generate_json", down)
     score, feedback = grade.grade_explanation(CARD, "light splits water")
     assert 0 < score < 1  # 3 of the 5 key words
-    assert "model is not available" in feedback
+    assert CARD["source_snippet"] in feedback
+    assert "You covered the core idea well." in feedback
+    assert 'Review the source note "water is split, releasing oxygen" for the remaining detail.' in feedback
+
+    # Test missed key terms branch
+    score_low, feedback_low = grade.grade_explanation(CARD, "unrelated random words")
+    assert score_low == 0.0
+    assert CARD["source_snippet"] in feedback_low
+    assert 'Your answer missed key terms from the notes. The text states "water is split, releasing oxygen".' == feedback_low
 
 
 def test_blank_answer_scores_zero_without_model_call(monkeypatch):

@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BookOpen,
   Cards,
-  CheckCircle,
   FilePdf,
   Flame,
   Graph,
@@ -27,31 +26,34 @@ const REVEAL_PROPS = {
   transition: { duration: 0.8, ease: EASE },
 };
 
-function GoalProgressRing({ xpToday = 0, reviewsToday = 0, dailyGoal = 15, goalMet = false }) {
-  const radius = 44;
+function GoalProgressRing({ xpToday = 0, reviewsToday = 0, dailyGoal = 15 }) {
+  const radius = 36;
   const circumference = 2 * Math.PI * radius;
   const targetXp = dailyGoal * 10;
-  const fraction = Math.min(1, Math.max(reviewsToday / Math.max(1, dailyGoal), xpToday / Math.max(10, targetXp)));
+  const fraction = Math.min(
+    1,
+    Math.max(reviewsToday / Math.max(1, dailyGoal), xpToday / Math.max(10, targetXp))
+  );
   const dashOffset = circumference * (1 - fraction);
 
   return (
-    <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
-      <svg className="w-full h-full -rotate-90" viewBox="0 0 104 104" aria-hidden="true">
+    <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
+      <svg className="w-full h-full -rotate-90" viewBox="0 0 88 88" aria-hidden="true">
         <circle
-          cx="52"
-          cy="52"
+          cx="44"
+          cy="44"
           r={radius}
           fill="none"
-          stroke="#313131"
-          strokeWidth="8"
+          stroke="#272727"
+          strokeWidth="6"
         />
         <motion.circle
-          cx="52"
-          cy="52"
+          cx="44"
+          cy="44"
           r={radius}
           fill="none"
           stroke="#F59E0B"
-          strokeWidth="8"
+          strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={circumference}
           initial={{ strokeDashoffset: circumference }}
@@ -60,16 +62,10 @@ function GoalProgressRing({ xpToday = 0, reviewsToday = 0, dailyGoal = 15, goalM
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <div className="inline-flex items-center gap-0.5 text-amber-400">
-          <Lightning weight="fill" className="w-4 h-4" />
-          <span className="font-mono text-lg font-bold text-[#EDEDED]">{xpToday}</span>
-        </div>
-        <span className="font-mono text-xs text-[#9B9B9B]">
+        <span className="font-mono text-sm font-bold text-[#EDEDED]">
           {reviewsToday}/{dailyGoal}
         </span>
-        {goalMet && (
-          <span className="text-xs font-semibold text-amber-400">Met</span>
-        )}
+        <span className="text-xs text-[#9B9B9B]">cards</span>
       </div>
     </div>
   );
@@ -77,20 +73,18 @@ function GoalProgressRing({ xpToday = 0, reviewsToday = 0, dailyGoal = 15, goalM
 
 function StatsSkeleton() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" aria-label="Loading statistics">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-label="Loading statistics">
       {[0, 1, 2].map((item) => (
         <div
           key={item}
-          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2 animate-pulse"
+          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex items-center justify-between gap-4 h-28 animate-pulse"
         >
-          <div className="rounded-lg bg-[#272727] p-4 flex items-center justify-between gap-4 h-32">
-            <div className="flex flex-col gap-3 w-full">
-              <div className="h-4 w-24 rounded bg-[#313131]" />
-              <div className="h-8 w-20 rounded bg-[#313131]" />
-              <div className="h-3 w-36 rounded bg-[#313131]" />
-            </div>
-            <div className="w-20 h-20 rounded-full bg-[#313131] shrink-0" />
+          <div className="flex flex-col gap-2 w-full">
+            <div className="h-3 w-20 rounded bg-[#272727]" />
+            <div className="h-8 w-16 rounded bg-[#272727]" />
+            <div className="h-3 w-28 rounded bg-[#272727]" />
           </div>
+          <div className="w-12 h-12 rounded-full bg-[#272727] shrink-0" />
         </div>
       ))}
     </div>
@@ -103,19 +97,17 @@ function DecksSkeleton() {
       {[0, 1].map((item) => (
         <div
           key={item}
-          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2 animate-pulse"
+          className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex flex-col gap-4 animate-pulse"
         >
-          <div className="rounded-lg bg-[#272727] p-4 flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-2">
-              <div className="h-6 w-48 rounded bg-[#313131]" />
-              <div className="h-6 w-16 rounded-full bg-[#313131]" />
-            </div>
-            <div className="h-3 w-40 rounded bg-[#313131]" />
-            <div className="h-2 w-full rounded-full bg-[#313131]" />
-            <div className="flex items-center gap-2 pt-2">
-              <div className="h-10 w-36 rounded-lg bg-[#313131]" />
-              <div className="h-10 w-32 rounded-lg bg-[#313131]" />
-            </div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="h-6 w-44 rounded bg-[#272727]" />
+            <div className="h-6 w-16 rounded-full bg-[#272727]" />
+          </div>
+          <div className="h-4 w-36 rounded bg-[#272727]" />
+          <div className="h-2 w-full rounded-full bg-[#272727]" />
+          <div className="flex items-center gap-2 pt-2">
+            <div className="h-10 w-32 rounded-lg bg-[#272727]" />
+            <div className="h-10 w-32 rounded-lg bg-[#272727]" />
           </div>
         </div>
       ))}
@@ -126,6 +118,7 @@ function DecksSkeleton() {
 export default function HomePage({
   stats,
   decks,
+  healthInfo,
   loading,
   error,
   onDecksChange,
@@ -210,14 +203,22 @@ export default function HomePage({
   };
 
   const totalDue = (decks || []).reduce((acc, d) => acc + (d.due_count || 0), 0);
+  const remainingGoal = Math.max(0, (stats?.daily_goal ?? 15) - (stats?.reviews_today ?? 0));
 
   return (
     <div className="max-w-5xl mx-auto px-4 pt-10 flex flex-col gap-12">
       <motion.section {...REVEAL_PROPS} aria-labelledby="home-heading" className="flex flex-col gap-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
           <div className="flex flex-col gap-4 max-w-[680px]">
-            <div className="inline-flex items-center gap-2 w-max px-3 py-1 rounded-full bg-[#1F1F1F] border border-[#313131] text-xs font-semibold text-[#9B9B9B]">
-              <span>Local Gemma · SM2 spaced repetition</span>
+            <div className="inline-flex items-center gap-2 w-max px-3 py-1 rounded-full bg-[#1F1F1F] border border-[#313131] text-xs font-medium text-[#9B9B9B]">
+              {healthInfo?.ok && healthInfo?.model ? (
+                <span>
+                  {healthInfo.provider === 'gemini_api' ? 'Gemini API' : 'Local Gemma'} ·{' '}
+                  <span className="font-mono text-amber-400">{healthInfo.model}</span>
+                </span>
+              ) : (
+                <span>Local Gemma · SM2 spaced repetition</span>
+              )}
             </div>
 
             <h1
@@ -230,8 +231,7 @@ export default function HomePage({
             </h1>
 
             <p className="text-base sm:text-lg text-[#9B9B9B] text-pretty max-w-[680px]">
-              Upload any lecture PDF. Revenant extracts core concepts, grounds every question in an exact page snippet,
-              and schedules reviews right before memory decays.
+              Upload a lecture PDF to extract grounded questions with verbatim page citations and review concepts before memory fades.
             </p>
 
             <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -239,8 +239,8 @@ export default function HomePage({
                 to="/review"
                 className={`py-2 px-3 rounded-lg text-base font-semibold inline-flex items-center gap-2 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                   totalDue > 0
-                    ? 'bg-amber-400 text-[#131209] hover:bg-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.25)]'
-                    : 'bg-[#272727] text-[#EDEDED] border border-[#313131] hover:bg-[#313131]'
+                    ? 'bg-amber-400 text-[#131209] hover:bg-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.2)]'
+                    : 'bg-[#1F1F1F] text-[#EDEDED] border border-[#313131] hover:bg-[#272727]'
                 }`}
               >
                 <Cards weight="bold" className="w-5 h-5" />
@@ -255,33 +255,24 @@ export default function HomePage({
                 className="py-2 px-3 rounded-lg bg-[#1F1F1F] hover:bg-[#272727] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               >
                 <Graph weight="bold" className="w-5 h-5 text-amber-400" />
-                <span>Explore concept path</span>
+                <span>Concept path</span>
               </Link>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2 self-start lg:self-center">
-            <div className="rounded-lg bg-[#272727] p-6 flex flex-col items-center text-center gap-3 w-full sm:w-64">
-              <GhostMascot
-                streak={stats?.streak ?? 0}
-                goalMet={Boolean(stats?.goal_met)}
-                size="lg"
-              />
-              <div className="flex flex-col gap-1">
-                <span className="text-sm font-semibold text-[#EDEDED]">
-                  {stats?.goal_met
-                    ? 'Ghost solidified for today'
-                    : (stats?.streak ?? 0) > 0
-                      ? 'Ghost is waiting on your goal'
-                      : 'Ghost is fading into mist'}
-                </span>
-                <span className="text-xs text-[#9B9B9B] text-pretty">
-                  {stats?.goal_met
-                    ? 'Daily target complete. Your streak is safe.'
-                    : `Complete ${Math.max(0, (stats?.daily_goal ?? 15) - (stats?.reviews_today ?? 0))} more reviews to reach full opacity.`}
-                </span>
-              </div>
-            </div>
+          <div className="flex flex-col items-center gap-3 self-center lg:pr-4">
+            <GhostMascot
+              streak={stats?.streak ?? 0}
+              goalMet={Boolean(stats?.goal_met)}
+              size="lg"
+            />
+            <span className="px-3 py-1 rounded-full bg-[#1F1F1F] border border-[#313131] text-xs font-medium text-[#9B9B9B]">
+              {stats?.goal_met
+                ? 'Daily goal reached'
+                : (stats?.streak ?? 0) > 0
+                  ? `${remainingGoal} more ${remainingGoal === 1 ? 'review' : 'reviews'} to solidify`
+                  : 'Complete a session to start your streak'}
+            </span>
           </div>
         </div>
       </motion.section>
@@ -300,107 +291,81 @@ export default function HomePage({
         {loading && !stats ? (
           <StatsSkeleton />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2">
-              <div className="rounded-lg bg-[#272727] p-4 h-full flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#9B9B9B]">
-                    Current streak
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-[#9B9B9B]">Current streak</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-3xl font-bold text-amber-400">
+                    {stats?.streak ?? 0}
                   </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-4xl font-bold text-amber-400">
-                      {stats?.streak ?? 0}
-                    </span>
-                    <span className="text-sm text-[#9B9B9B]">days</span>
-                  </div>
-                  <span className="text-xs text-[#9B9B9B]">
-                    Personal best:{' '}
-                    <span className="font-mono font-semibold text-[#EDEDED]">
-                      {stats?.best_streak ?? 0}
-                    </span>{' '}
-                    days
-                  </span>
+                  <span className="text-sm text-[#9B9B9B]">days</span>
                 </div>
-                <div className="w-16 h-16 rounded-full bg-[#1F1F1F] border border-[#313131] flex items-center justify-center shadow-[0_0_24px_rgba(245,158,11,0.2)]">
-                  <Flame weight="fill" className="w-8 h-8 text-amber-400" />
-                </div>
+                <span className="text-xs text-[#9B9B9B]">
+                  Best <span className="font-mono text-[#EDEDED]">{stats?.best_streak ?? 0}</span> days
+                </span>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-[#272727] border border-[#313131] flex items-center justify-center shrink-0">
+                <Flame weight="fill" className="w-6 h-6 text-amber-400" />
               </div>
             </div>
 
-            <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2">
-              <div className="rounded-lg bg-[#272727] p-4 h-full flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#9B9B9B]">
-                    Streak freezes
+            <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-[#9B9B9B]">Streak freezes</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-mono text-3xl font-bold text-[#EDEDED]">
+                    {stats?.freezes ?? 0}
                   </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-4xl font-bold text-[#EDEDED]">
-                      {stats?.freezes ?? 0}
-                    </span>
-                    <span className="font-mono text-sm text-[#9B9B9B]">/ 2</span>
-                  </div>
-                  <span className="text-xs text-[#9B9B9B] text-pretty">
-                    Earned when a concept reaches mastered status
-                  </span>
+                  <span className="font-mono text-sm text-[#9B9B9B]">/ 2</span>
                 </div>
-                <div className="w-16 h-16 rounded-full bg-[#1F1F1F] border border-[#313131] flex items-center justify-center">
-                  <Snowflake weight="fill" className="w-8 h-8 text-amber-400" />
-                </div>
+                <span className="text-xs text-[#9B9B9B]">Earned on concept mastery</span>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-[#272727] border border-[#313131] flex items-center justify-center shrink-0">
+                <Snowflake weight="fill" className="w-6 h-6 text-amber-400" />
               </div>
             </div>
 
-            <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2">
-              <div className="rounded-lg bg-[#272727] p-4 h-full flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#9B9B9B]">
-                    Today XP and goal
+            <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-[#9B9B9B]">Today XP</span>
+                <div className="flex items-baseline gap-1">
+                  <Lightning weight="fill" className="w-4 h-4 text-amber-400 self-center" />
+                  <span className="font-mono text-3xl font-bold text-[#EDEDED]">
+                    {stats?.xp_today ?? 0}
                   </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-2xl font-bold text-[#EDEDED]">
-                      {stats?.xp_today ?? 0}
-                    </span>
-                    <span className="text-xs text-[#9B9B9B]">
-                      XP today · <span className="font-mono">{stats?.xp_total ?? 0}</span> total
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onOpenOnboarding}
-                    className="w-max text-xs font-semibold text-amber-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded"
-                  >
-                    Adjust daily goal (<span className="font-mono">{stats?.daily_goal ?? 15}</span>)
-                  </button>
                 </div>
-                <GoalProgressRing
-                  xpToday={stats?.xp_today ?? 0}
-                  reviewsToday={stats?.reviews_today ?? 0}
-                  dailyGoal={stats?.daily_goal ?? 15}
-                  goalMet={Boolean(stats?.goal_met)}
-                />
+                <button
+                  type="button"
+                  onClick={onOpenOnboarding}
+                  className="w-max text-xs font-semibold text-amber-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded"
+                >
+                  Daily goal: <span className="font-mono">{stats?.daily_goal ?? 15}</span>
+                </button>
               </div>
+              <GoalProgressRing
+                xpToday={stats?.xp_today ?? 0}
+                reviewsToday={stats?.reviews_today ?? 0}
+                dailyGoal={stats?.daily_goal ?? 15}
+              />
             </div>
           </div>
         )}
       </motion.section>
 
       <motion.section {...REVEAL_PROPS} aria-labelledby="decks-heading" className="flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h2 id="decks-heading" className="text-2xl font-bold text-[#EDEDED] text-balance">
-              Your revision decks
-            </h2>
-            <p className="text-sm text-[#9B9B9B] text-pretty">
-              Each deck is built locally from your lecture PDF with verbatim page citations.
-            </p>
-          </div>
+        <div className="flex items-center justify-between gap-4">
+          <h2 id="decks-heading" className="text-xl font-bold text-[#EDEDED] text-balance">
+            Decks
+          </h2>
           <button
             type="button"
             disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
-            className="py-2 px-3 rounded-lg bg-[#1F1F1F] hover:bg-[#272727] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 w-max active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
+            className="py-2 px-3 rounded-lg bg-[#1F1F1F] hover:bg-[#272727] border border-[#313131] text-sm font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
           >
-            <UploadSimple weight="bold" className="w-5 h-5 text-amber-400" />
-            <span>{uploading ? 'Uploading PDF' : 'Upload lecture PDF'}</span>
+            <UploadSimple weight="bold" className="w-4 h-4 text-amber-400" />
+            <span>{uploading ? 'Uploading PDF' : 'Upload PDF'}</span>
           </button>
         </div>
 
@@ -416,26 +381,24 @@ export default function HomePage({
         {loading && (!decks || decks.length === 0) ? (
           <DecksSkeleton />
         ) : !decks || decks.length === 0 ? (
-          <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2">
-            <div className="rounded-lg bg-[#272727] p-8 flex flex-col items-center text-center gap-4">
-              <GhostMascot streak={0} goalMet={false} size="md" />
-              <div className="flex flex-col gap-1 max-w-md">
-                <h3 className="text-lg font-semibold text-[#EDEDED] text-balance">
-                  No lecture decks yet
-                </h3>
-                <p className="text-sm text-[#9B9B9B] text-pretty">
-                  Drop a course PDF to extract concepts, build spaced repetition cards, and track memory health.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              >
-                <UploadSimple weight="bold" className="w-5 h-5" />
-                <span>Upload your first PDF</span>
-              </button>
+          <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-8 flex flex-col items-center text-center gap-4">
+            <GhostMascot streak={0} goalMet={false} size="md" />
+            <div className="flex flex-col gap-1 max-w-md">
+              <h3 className="text-lg font-semibold text-[#EDEDED] text-balance">
+                No lecture decks yet
+              </h3>
+              <p className="text-sm text-[#9B9B9B] text-pretty">
+                Drop a course PDF to extract concepts, build spaced repetition cards, and track memory health.
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              <UploadSimple weight="bold" className="w-5 h-5" />
+              <span>Upload your first PDF</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -448,129 +411,127 @@ export default function HomePage({
               return (
                 <article
                   key={deck.deck_id}
-                  className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2 flex flex-col justify-between transition-all duration-300 hover:bg-[#272727]"
+                  className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-6 flex flex-col justify-between gap-6 transition-all duration-300 hover:bg-[#272727]"
                 >
-                  <div className="rounded-lg bg-[#272727] p-4 flex flex-col gap-4 h-full justify-between">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <FilePdf weight="duotone" className="w-6 h-6 text-amber-400 shrink-0" />
-                          <h3 className="text-lg font-semibold text-[#EDEDED] text-balance">
-                            {deck.title}
-                          </h3>
-                        </div>
-
-                        {isProcessing ? (
-                          <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-amber-400/50 font-mono text-xs font-semibold text-amber-400 shrink-0">
-                            Processing {progressPct}%
-                          </span>
-                        ) : isFailed ? (
-                          <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-red-500/50 text-xs font-semibold text-red-400 shrink-0">
-                            Failed
-                          </span>
-                        ) : (
-                          <span
-                            className={`px-2 py-0.5 rounded-full bg-[#131209] border font-mono text-xs font-semibold shrink-0 ${
-                              deck.due_count > 0
-                                ? 'border-amber-400/60 text-amber-400'
-                                : 'border-[#313131] text-[#9B9B9B]'
-                            }`}
-                          >
-                            {deck.due_count} due
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-[#9B9B9B]">
-                        <span className="inline-flex items-center gap-1">
-                          <BookOpen className="w-4 h-4" />
-                          <span className="font-mono text-[#EDEDED]">{deck.page_count}</span> pages
-                        </span>
-                        <span>·</span>
-                        <span>
-                          <span className="font-mono text-[#EDEDED]">{deck.concept_count}</span> concepts
-                        </span>
-                        <span>·</span>
-                        <span>
-                          <span className="font-mono text-[#EDEDED]">{deck.card_count}</span> cards
-                        </span>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <FilePdf weight="duotone" className="w-5 h-5 text-amber-400 shrink-0" />
+                        <h3 className="text-lg font-semibold text-[#EDEDED] text-balance">
+                          {deck.title}
+                        </h3>
                       </div>
 
                       {isProcessing ? (
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center justify-between text-xs text-[#9B9B9B]">
-                            <span>Extracting concepts and grounding questions</span>
-                            <span className="font-mono text-amber-400">{progressPct}%</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-[#131209] border border-[#313131] overflow-hidden">
-                            <motion.div
-                              className="h-full bg-amber-400 rounded-full"
-                              initial={{ width: '8%' }}
-                              animate={{ width: `${Math.max(8, progressPct)}%` }}
-                              transition={{ duration: 0.4, ease: EASE }}
-                            />
-                          </div>
-                        </div>
+                        <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-amber-400/50 font-mono text-xs font-semibold text-amber-400 shrink-0">
+                          Processing {progressPct}%
+                        </span>
                       ) : isFailed ? (
-                        <p className="text-xs text-red-400 text-pretty">
-                          Local model could not be reached during extraction. Start Ollama and upload again, or review the seeded deck.
-                        </p>
+                        <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-red-500/50 text-xs font-semibold text-red-400 shrink-0">
+                          Failed
+                        </span>
                       ) : (
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-[#9B9B9B]">Concept mastery</span>
-                            <span className="font-mono font-semibold text-amber-400">
-                              {masteryPct}%
-                            </span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-[#131209] border border-[#313131] overflow-hidden">
-                            <motion.div
-                              className="h-full bg-amber-400 rounded-full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min(100, Number(deck.mastery_pct ?? 0))}%` }}
-                              transition={{ duration: 0.8, ease: EASE }}
-                            />
-                          </div>
-                        </div>
+                        <span
+                          className={`px-2 py-0.5 rounded-full bg-[#131209] border font-mono text-xs font-semibold shrink-0 ${
+                            deck.due_count > 0
+                              ? 'border-amber-400/60 text-amber-400'
+                              : 'border-[#313131] text-[#9B9B9B]'
+                          }`}
+                        >
+                          {deck.due_count} due
+                        </span>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 pt-2">
-                      {isProcessing ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="py-2 px-3 rounded-lg bg-[#1F1F1F] border border-[#313131] text-base font-semibold text-[#9B9B9B] opacity-60 cursor-not-allowed"
-                        >
-                          Preparing cards
-                        </button>
-                      ) : isFailed ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="py-2 px-3 rounded-lg bg-[#1F1F1F] border border-[#313131] text-base font-semibold text-[#9B9B9B] opacity-60 cursor-not-allowed"
-                        >
-                          Extraction failed
-                        </button>
-                      ) : (
-                        <>
-                          <Link
-                            to={`/review?deck_id=${encodeURIComponent(deck.deck_id)}`}
-                            className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                          >
-                            <span>Review deck</span>
-                            <ArrowRight weight="bold" className="w-4 h-4" />
-                          </Link>
-                          <Link
-                            to={`/path?deck_id=${encodeURIComponent(deck.deck_id)}`}
-                            className="py-2 px-3 rounded-lg bg-[#1F1F1F] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                          >
-                            <Graph weight="bold" className="w-4 h-4 text-amber-400" />
-                            <span>Concept path</span>
-                          </Link>
-                        </>
-                      )}
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#9B9B9B]">
+                      <span className="inline-flex items-center gap-1">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span className="font-mono text-[#EDEDED]">{deck.page_count}</span> pages
+                      </span>
+                      <span>·</span>
+                      <span>
+                        <span className="font-mono text-[#EDEDED]">{deck.concept_count}</span> concepts
+                      </span>
+                      <span>·</span>
+                      <span>
+                        <span className="font-mono text-[#EDEDED]">{deck.card_count}</span> cards
+                      </span>
                     </div>
+
+                    {isProcessing ? (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between text-xs text-[#9B9B9B]">
+                          <span>Extracting grounded questions</span>
+                          <span className="font-mono text-amber-400">{progressPct}%</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-[#131209] border border-[#313131] overflow-hidden">
+                          <motion.div
+                            className="h-full bg-amber-400 rounded-full"
+                            initial={{ width: '8%' }}
+                            animate={{ width: `${Math.max(8, progressPct)}%` }}
+                            transition={{ duration: 0.4, ease: EASE }}
+                          />
+                        </div>
+                      </div>
+                    ) : isFailed ? (
+                      <p className="text-xs text-red-400 text-pretty">
+                        Local model could not be reached during extraction. Start Ollama and upload again, or review the seeded deck.
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-[#9B9B9B]">Mastery</span>
+                          <span className="font-mono font-semibold text-amber-400">
+                            {masteryPct}%
+                          </span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-[#131209] border border-[#313131] overflow-hidden">
+                          <motion.div
+                            className="h-full bg-amber-400 rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(100, Number(deck.mastery_pct ?? 0))}%` }}
+                            transition={{ duration: 0.8, ease: EASE }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isProcessing && (deck.card_count ?? 0) === 0 ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="py-2 px-3 rounded-lg bg-[#272727] border border-[#313131] text-base font-semibold text-[#9B9B9B] opacity-60 cursor-not-allowed"
+                      >
+                        Preparing cards
+                      </button>
+                    ) : isFailed ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="py-2 px-3 rounded-lg bg-[#272727] border border-[#313131] text-base font-semibold text-[#9B9B9B] opacity-60 cursor-not-allowed"
+                      >
+                        Extraction failed
+                      </button>
+                    ) : (
+                      <>
+                        <Link
+                          to={`/review?deck_id=${encodeURIComponent(deck.deck_id)}`}
+                          className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-base font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                        >
+                          <span>{isProcessing ? 'Review ready cards' : 'Review deck'}</span>
+                          <ArrowRight weight="bold" className="w-4 h-4" />
+                        </Link>
+                        <Link
+                          to={`/path?deck_id=${encodeURIComponent(deck.deck_id)}`}
+                          className="py-2 px-3 rounded-lg bg-[#272727] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                        >
+                          <Graph weight="bold" className="w-4 h-4 text-amber-400" />
+                          <span>Concept path</span>
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </article>
               );
@@ -585,35 +546,31 @@ export default function HomePage({
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
-          className={`rounded-2xl border p-2 transition-all duration-300 ${
+          className={`rounded-2xl border border-dashed p-6 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-300 ${
             dragging
-              ? 'bg-[#272727] border-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.18)]'
+              ? 'bg-[#272727] border-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.16)]'
               : 'bg-[#1F1F1F] border-[#313131]'
           }`}
         >
-          <div className="rounded-lg bg-[#272727] p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#1F1F1F] border border-[#313131] flex items-center justify-center shrink-0">
-                <UploadSimple weight="bold" className="w-6 h-6 text-amber-400" />
-              </div>
-              <div className="flex flex-col gap-0.5 text-center sm:text-left">
-                <span className="text-base font-semibold text-[#EDEDED]">
-                  Drag and drop a lecture PDF here
-                </span>
-                <span className="text-xs text-[#9B9B9B]">
-                  PDF format only · Maximum file size <span className="font-mono">20</span> MB · Processed locally
-                </span>
-              </div>
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <UploadSimple weight="bold" className="w-5 h-5 text-amber-400 shrink-0 hidden sm:block" />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold text-[#EDEDED]">
+                Drag and drop a lecture PDF here
+              </span>
+              <span className="text-xs text-[#9B9B9B]">
+                PDF only · Up to <span className="font-mono">20</span> MB · Processed locally
+              </span>
             </div>
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="py-2 px-3 rounded-lg bg-[#1F1F1F] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] shrink-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
-            >
-              {uploading ? 'Uploading' : 'Choose PDF'}
-            </button>
           </div>
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+            className="py-2 px-3 rounded-lg bg-[#272727] hover:bg-[#313131] border border-[#313131] text-base font-semibold text-[#EDEDED] shrink-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
+          >
+            {uploading ? 'Uploading' : 'Choose PDF'}
+          </button>
         </div>
 
         {uploadError && (
@@ -629,4 +586,3 @@ export default function HomePage({
     </div>
   );
 }
-

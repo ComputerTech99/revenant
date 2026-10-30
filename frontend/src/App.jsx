@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { Bell } from '@phosphor-icons/react';
 import {
   fetchDecks,
+  fetchHealth,
   fetchStats,
   updateSettings,
 } from './api/client.js';
@@ -19,6 +19,7 @@ const ONBOARDING_STORAGE_KEY = 'revenant_onboarded';
 export default function App() {
   const [stats, setStats] = useState(null);
   const [decks, setDecks] = useState([]);
+  const [healthInfo, setHealthInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -56,9 +57,16 @@ export default function App() {
   const refreshAll = useCallback(async () => {
     setError('');
     try {
-      const [statsData, decksData] = await Promise.all([fetchStats(), fetchDecks()]);
+      const [statsData, decksData, healthData] = await Promise.all([
+        fetchStats(),
+        fetchDecks(),
+        fetchHealth().catch(() => null),
+      ]);
       setStats(statsData);
       setDecks(decksData || []);
+      if (healthData) {
+        setHealthInfo(healthData);
+      }
       const dueTotal = (decksData || []).reduce((sum, d) => sum + (d.due_count || 0), 0);
       notifyDueCards(dueTotal);
     } catch (err) {
@@ -89,6 +97,14 @@ export default function App() {
     }
   };
 
+  const handleStatsChange = useCallback(
+    (newStats) => {
+      setStats(newStats);
+      refreshAll();
+    },
+    [refreshAll]
+  );
+
   const handleEnableNotifications = async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     try {
@@ -97,7 +113,7 @@ export default function App() {
       if (permission === 'granted') {
         const dueTotal = (decks || []).reduce((sum, d) => sum + (d.due_count || 0), 0);
         lastNotifiedDueRef.current = 0;
-        notifyDueCards(dueTotal || 5);
+        notifyDueCards(dueTotal || 3);
       }
     } catch {
       // Ignore permission prompt errors
@@ -118,21 +134,11 @@ export default function App() {
 
         <NavBar
           stats={stats}
+          totalDue={totalDue}
+          notifPermission={notifPermission}
+          onEnableNotifications={handleEnableNotifications}
           onOpenOnboarding={() => setShowOnboarding(true)}
         />
-
-        {notifPermission === 'default' && totalDue > 0 && (
-          <div className="max-w-5xl mx-auto px-4 pt-4 w-full flex justify-end">
-            <button
-              type="button"
-              onClick={handleEnableNotifications}
-              className="px-3 py-1 rounded-full bg-[#1F1F1F] hover:bg-[#272727] border border-[#313131] text-xs font-semibold text-[#9B9B9B] hover:text-[#EDEDED] inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-            >
-              <Bell weight="bold" className="w-3.5 h-3.5 text-amber-400" />
-              <span>Enable due card alerts</span>
-            </button>
-          </div>
-        )}
 
         <main id="main-content" className="flex-1">
           <Routes>
@@ -142,6 +148,7 @@ export default function App() {
                 <HomePage
                   stats={stats}
                   decks={decks}
+                  healthInfo={healthInfo}
                   loading={loading}
                   error={error}
                   onDecksChange={setDecks}
@@ -164,10 +171,7 @@ export default function App() {
               element={
                 <ReviewPage
                   stats={stats}
-                  onStatsChange={(newStats) => {
-                    setStats(newStats);
-                    refreshAll();
-                  }}
+                  onStatsChange={handleStatsChange}
                 />
               }
             />
@@ -175,7 +179,7 @@ export default function App() {
           </Routes>
         </main>
 
-        <Footer />
+        <Footer healthInfo={healthInfo} />
 
         {showOnboarding && (
           <OnboardingModal
@@ -195,4 +199,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

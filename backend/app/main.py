@@ -276,4 +276,5 @@ def reset():
             db.set_setting(conn, "streak", pre_streak)
             db.set_setting(conn, "freezes", db.get_setting(conn, "pre_warp_freezes", "0"))
             db.set_setting(conn, "streak_day", db.get_setting(conn, "pre_warp_streak_day", ""))
+            db.set_setting(conn, "pre_warp_streak", "")
         return {"now": db.iso(db.now(conn))}

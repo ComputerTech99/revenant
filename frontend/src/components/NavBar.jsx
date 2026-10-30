@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Flame, Lightning, Sparkle } from '@phosphor-icons/react';
+import { Bell, Flame, Lightning, Sparkle } from '@phosphor-icons/react';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home', delayClass: 'delay-100' },
@@ -8,7 +8,13 @@ const NAV_ITEMS = [
   { to: '/review', label: 'Review', delayClass: 'delay-200' },
 ];
 
-export default function NavBar({ stats, onOpenOnboarding }) {
+export default function NavBar({
+  stats,
+  totalDue = 0,
+  notifPermission = 'unsupported',
+  onEnableNotifications,
+  onOpenOnboarding,
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -21,7 +27,7 @@ export default function NavBar({ stats, onOpenOnboarding }) {
     <header className="sticky top-0 z-40 px-4">
       <nav
         aria-label="Primary navigation"
-        className="mt-6 mx-auto w-max rounded-full bg-black/80 backdrop-blur-3xl border border-[#313131] p-1 flex items-center gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+        className="mt-6 mx-auto w-max rounded-full bg-black/80 backdrop-blur-3xl border border-[#313131] p-1 flex items-center gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.45)]"
       >
         <NavLink
           to="/"
@@ -39,20 +45,25 @@ export default function NavBar({ stats, onOpenOnboarding }) {
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={`px-3 py-1 rounded-full text-sm font-semibold transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                className={`px-3 py-1 rounded-full text-sm font-semibold transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 inline-flex items-center gap-2 ${
                   active
-                    ? 'bg-[#272727] text-amber-400 border border-[#313131] shadow-[0_0_16px_rgba(245,158,11,0.18)]'
+                    ? 'bg-[#272727] text-amber-400 border border-[#313131]'
                     : 'text-[#9B9B9B] hover:text-[#EDEDED] hover:bg-[#1F1F1F]'
                 }`}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.to === '/review' && totalDue > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-[#131209] font-mono text-xs text-amber-400">
+                    {totalDue}
+                  </span>
+                )}
               </NavLink>
             );
           })}
         </div>
 
         {stats && (
-          <div className="hidden sm:flex items-center gap-2 pl-2 pr-1">
+          <div className="hidden sm:flex items-center gap-2 pl-1">
             <span
               className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#1F1F1F] border border-[#313131] text-xs font-semibold text-amber-400"
               title="Current streak"
@@ -70,6 +81,18 @@ export default function NavBar({ stats, onOpenOnboarding }) {
           </div>
         )}
 
+        {notifPermission === 'default' && totalDue > 0 && (
+          <button
+            type="button"
+            onClick={onEnableNotifications}
+            aria-label="Enable due card notifications"
+            title="Enable due card notifications"
+            className="hidden sm:inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold text-[#9B9B9B] hover:text-amber-400 hover:bg-[#1F1F1F] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          >
+            <Bell weight="bold" className="w-4 h-4" />
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onOpenOnboarding}
@@ -77,7 +100,7 @@ export default function NavBar({ stats, onOpenOnboarding }) {
           title="Daily goal"
           className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm font-semibold text-[#9B9B9B] hover:text-[#EDEDED] hover:bg-[#1F1F1F] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
         >
-          <Sparkle weight="bold" className="w-4 h-4 text-amber-400" />
+          <Sparkle weight="bold" className="w-3.5 h-3.5 text-amber-400" />
           <span className="font-mono text-xs">{stats?.daily_goal ?? 15}</span>
         </button>
 
@@ -86,7 +109,7 @@ export default function NavBar({ stats, onOpenOnboarding }) {
           onClick={() => setMenuOpen((prev) => !prev)}
           aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
           aria-expanded={menuOpen}
-          className="sm:hidden relative w-9 h-9 rounded-full bg-[#1F1F1F] border border-[#313131] flex items-center justify-center active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          className="sm:hidden relative w-8 h-8 rounded-full bg-[#1F1F1F] border border-[#313131] flex items-center justify-center active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
         >
           <span
             className={`block absolute w-4 h-0.5 bg-[#EDEDED] transition-transform duration-300 ${
