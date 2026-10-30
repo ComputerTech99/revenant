@@ -270,19 +270,6 @@ export default function ReviewPage({ stats, onStatsChange }) {
     }
   }, [currentCard, explainInput, feedbackState, grading, onStatsChange, stats]);
 
-  const handleMarkEasy = async () => {
-    if (!currentCard || !feedbackState || easyApplied) return;
-    setEasyApplied(true);
-    try {
-      const res = await submitCardGrade(currentCard.id, 'easy');
-      if (res.stats) {
-        onStatsChange?.(res.stats);
-      }
-    } catch {
-      // Optional easy upgrade
-    }
-  };
-
   const handleNextCard = useCallback(() => {
     if (!feedbackState) return;
     setFeedbackState(null);
@@ -298,6 +285,24 @@ export default function ReviewPage({ stats, onStatsChange }) {
       setSessionDone(true);
     }
   }, [cards.length, currentIndex, feedbackState]);
+
+  const handleMarkEasy = async () => {
+    if (!currentCard || !feedbackState || easyApplied) return;
+    setEasyApplied(true);
+    setDueBuckets((prev) => ({
+      tomorrow: Math.max(0, prev.tomorrow - 1),
+      nextWeek: prev.nextWeek + 1,
+    }));
+    try {
+      const res = await submitCardGrade(currentCard.id, 'easy');
+      if (res.stats) {
+        onStatsChange?.(res.stats);
+      }
+    } catch {
+      // Optional easy upgrade
+    }
+    handleNextCard();
+  };
 
   useEffect(() => {
     if (sessionDone && stats?.goal_met && !confettiFiredRef.current && !prefersReducedMotion) {

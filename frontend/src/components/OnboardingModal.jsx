@@ -14,8 +14,8 @@ const GOALS = [
   { value: 30, label: 'Serious', detail: 'Deep mastery sprint' },
 ];
 
-export default function OnboardingModal({ currentGoal = 15, onSelectGoal, onClose }) {
-  const [selected, setSelected] = useState(currentGoal || 15);
+export default function OnboardingModal({ currentGoal = 5, onSelectGoal, onClose }) {
+  const [selected, setSelected] = useState(currentGoal || 5);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 

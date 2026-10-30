@@ -219,6 +219,22 @@ def review_card(card_id: str, body: ReviewBody):
     # mcq and cloze: the frontend judged the answer; anything but "again" is correct.
     with db.connect() as conn:
         card = get_card_row(conn, card_id)
+        now = db.now(conn)
+        if body.grade == "easy" and card["last_reviewed_at"]:
+            elapsed = abs((now - db.parse_iso(card["last_reviewed_at"])).total_seconds())
+            if elapsed < 60:
+                next_due = scheduler.apply_review(conn, card, "easy", now)
+                concept_row = conn.execute(
+                    "SELECT * FROM concepts WHERE id = ?", (card["concept_id"],)
+                ).fetchone()
+                concept = views.concept_view(conn, concept_row, now)
+                stats.award_mastery_freeze(conn, concept)
+                return {
+                    "next_due": next_due,
+                    "concept": concept,
+                    "xp_gained": 0,
+                    "stats": stats.get_stats(conn, now),
+                }
         base_xp = 0 if body.grade == "again" else stats.XP_CORRECT
         return apply_grade(conn, card, body.grade, base_xp)
 
@@ -241,7 +257,12 @@ def update_settings(body: SettingsBody):
 @app.post("/api/debug/timewarp")
 def timewarp(body: TimewarpBody):
     with db.connect() as conn:
-        offset = float(db.get_setting(conn, "offset_days", "0")) + body.days
+        current_offset = float(db.get_setting(conn, "offset_days", "0"))
+        if current_offset == 0:
+            db.set_setting(conn, "pre_warp_streak", db.get_setting(conn, "streak", "0"))
+            db.set_setting(conn, "pre_warp_freezes", db.get_setting(conn, "freezes", "0"))
+            db.set_setting(conn, "pre_warp_streak_day", db.get_setting(conn, "streak_day", ""))
+        offset = current_offset + body.days
         db.set_setting(conn, "offset_days", offset)
         return {"now": db.iso(db.now(conn))}
 
@@ -250,4 +271,9 @@ def timewarp(body: TimewarpBody):
 def reset():
     with db.connect() as conn:
         db.set_setting(conn, "offset_days", 0)
+        pre_streak = db.get_setting(conn, "pre_warp_streak", "")
+        if pre_streak != "":
+            db.set_setting(conn, "streak", pre_streak)
+            db.set_setting(conn, "freezes", db.get_setting(conn, "pre_warp_freezes", "0"))
+            db.set_setting(conn, "streak_day", db.get_setting(conn, "pre_warp_streak_day", ""))
         return {"now": db.iso(db.now(conn))}

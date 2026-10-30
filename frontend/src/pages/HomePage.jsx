@@ -511,6 +511,10 @@ export default function HomePage({
                             />
                           </div>
                         </div>
+                      ) : isFailed ? (
+                        <p className="text-xs text-red-400 text-pretty">
+                          Local model could not be reached during extraction. Start Ollama and upload again, or review the seeded deck.
+                        </p>
                       ) : (
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center justify-between text-xs">
@@ -539,6 +543,14 @@ export default function HomePage({
                           className="py-2 px-3 rounded-lg bg-[#1F1F1F] border border-[#313131] text-base font-semibold text-[#9B9B9B] opacity-60 cursor-not-allowed"
                         >
                           Preparing cards
+                        </button>
+                      ) : isFailed ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="py-2 px-3 rounded-lg bg-[#1F1F1F] border border-[#313131] text-base font-semibold text-[#9B9B9B] opacity-60 cursor-not-allowed"
+                        >
+                          Extraction failed
                         </button>
                       ) : (
                         <>

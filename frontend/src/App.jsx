@@ -166,6 +166,7 @@ export default function App() {
                   stats={stats}
                   onStatsChange={(newStats) => {
                     setStats(newStats);
+                    refreshAll();
                   }}
                 />
               }
@@ -178,7 +179,7 @@ export default function App() {
 
         {showOnboarding && (
           <OnboardingModal
-            currentGoal={stats?.daily_goal ?? 15}
+            currentGoal={stats?.daily_goal ?? 5}
             onSelectGoal={handleSelectGoal}
             onClose={() => {
               try {
