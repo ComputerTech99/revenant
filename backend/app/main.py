@@ -2,7 +2,6 @@
 
 import logging
 from contextlib import asynccontextmanager
-from datetime import timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -12,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from . import db, llm, stub, views
+from . import db, llm, scheduler, stats, views
 from .generate import generate_deck
 from .ingest import IngestError, make_chunks, read_pdf
 
@@ -168,39 +167,57 @@ def due_cards(deck_id: str | None = None, limit: int = 15):
         return [views.card_view(row) for row in rows]
 
 
+def apply_grade(conn, card, grade: str, base_xp: int) -> dict:
+    """Shared by both review endpoints: schedule, log XP, refresh concept and stats."""
+    now = db.now(conn)
+    next_due = scheduler.apply_review(conn, card, grade, now)
+    xp_gained = stats.record_review(conn, card["id"], grade, base_xp, now)
+    concept_row = conn.execute("SELECT * FROM concepts WHERE id = ?", (card["concept_id"],)).fetchone()
+    concept = views.concept_view(conn, concept_row, now)
+    stats.award_mastery_freeze(conn, concept)
+    return {
+        "next_due": next_due,
+        "concept": concept,
+        "xp_gained": xp_gained,
+        "stats": stats.get_stats(conn, now),
+    }
+
+
+def score_to_grade(score: float) -> str:
+    """Contract: score >= 0.8 -> good, 0.5 to 0.8 -> hard, below 0.5 -> again."""
+    if score >= 0.8:
+        return "good"
+    if score >= 0.5:
+        return "hard"
+    return "again"
+
+
 # Registered before /api/review/{card_id} so ".../explain" is never routed there.
 @app.post("/api/review/{card_id}/explain")
 def explain_card(card_id: str, body: ExplainBody):
-    # P4 replaces this placeholder grading with Gemma.
+    # P4 replaces this placeholder score with Gemma grading.
     with db.connect() as conn:
         card = get_card_row(conn, card_id)
-        now = db.now(conn)
-        concept = conn.execute("SELECT * FROM concepts WHERE id = ?", (card["concept_id"],)).fetchone()
+        score = 0.6
+        feedback = "You named the main idea. You missed the detail in the source."
+        grade = score_to_grade(score)
+        result = apply_grade(conn, card, grade, base_xp=round(score * 20))
         return {
-            "score": 0.6,
-            "feedback": "You named the main idea. You missed the detail in the source.",
-            "grade": "hard",
+            "score": score,
+            "feedback": feedback,
+            "grade": grade,
             "source": views.card_view(card)["source"],
-            "next_due": db.iso(now + timedelta(days=1)),
-            "concept": views.concept_view(conn, concept, now),
-            "xp_gained": 12,
-            "stats": stub.stats(conn),
+            **result,
         }
 
 
 @app.post("/api/review/{card_id}")
 def review_card(card_id: str, body: ReviewBody):
-    # P3 replaces this placeholder with SM-2.
+    # mcq and cloze: the frontend judged the answer; anything but "again" is correct.
     with db.connect() as conn:
         card = get_card_row(conn, card_id)
-        now = db.now(conn)
-        concept = conn.execute("SELECT * FROM concepts WHERE id = ?", (card["concept_id"],)).fetchone()
-        return {
-            "next_due": db.iso(now + timedelta(days=0 if body.grade == "again" else 1)),
-            "concept": views.concept_view(conn, concept, now),
-            "xp_gained": 0 if body.grade == "again" else 10,
-            "stats": stub.stats(conn),
-        }
+        base_xp = 0 if body.grade == "again" else stats.XP_CORRECT
+        return apply_grade(conn, card, body.grade, base_xp)
 
 
 # --- Stats, settings, debug ------------------------------------------------
@@ -208,14 +225,14 @@ def review_card(card_id: str, body: ReviewBody):
 @app.get("/api/stats")
 def get_stats():
     with db.connect() as conn:
-        return stub.stats(conn)
+        return stats.get_stats(conn, db.now(conn))
 
 
 @app.post("/api/settings")
 def update_settings(body: SettingsBody):
     with db.connect() as conn:
         db.set_setting(conn, "daily_goal", body.daily_goal)
-        return stub.stats(conn)
+        return stats.get_stats(conn, db.now(conn))
 
 
 @app.post("/api/debug/timewarp")

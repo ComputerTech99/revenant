@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS concepts (
     name     TEXT NOT NULL,
     summary  TEXT NOT NULL,
     pages    TEXT NOT NULL,            -- JSON list of ints
-    position INTEGER NOT NULL          -- reading order within the deck
+    position INTEGER NOT NULL,         -- reading order within the deck
+    ever_mastered INTEGER NOT NULL DEFAULT 0  -- 1 once it has earned its freeze
 );
 
 CREATE TABLE IF NOT EXISTS cards (
@@ -59,8 +60,9 @@ CREATE TABLE IF NOT EXISTS reviews (
     id          TEXT PRIMARY KEY,
     card_id     TEXT NOT NULL REFERENCES cards(id),
     grade       TEXT NOT NULL,
-    xp          INTEGER NOT NULL,
-    reviewed_at TEXT NOT NULL
+    xp          INTEGER NOT NULL,      -- includes the daily goal bonus if this review earned it
+    reviewed_at TEXT NOT NULL,
+    day         TEXT NOT NULL          -- local calendar date of "now", e.g. 2026-10-31
 );
 
 CREATE INDEX IF NOT EXISTS idx_cards_due ON cards(deck_id, due_at);
@@ -89,9 +91,24 @@ def init_db() -> None:
     with connect() as conn:
         conn.execute("PRAGMA journal_mode = WAL")
         conn.executescript(SCHEMA)
+        add_missing_columns(conn)
         # A deck still "processing" at startup lost its background task when
         # the server stopped, so it will never finish. Mark it failed.
         conn.execute("UPDATE decks SET status = 'failed' WHERE status = 'processing'")
+
+
+# Columns added after the first schema; older database files get them here.
+NEW_COLUMNS = [
+    ("concepts", "ever_mastered", "INTEGER NOT NULL DEFAULT 0"),
+    ("reviews", "day", "TEXT NOT NULL DEFAULT ''"),
+]
+
+
+def add_missing_columns(conn) -> None:
+    for table, column, definition in NEW_COLUMNS:
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 # --- Settings --------------------------------------------------------------

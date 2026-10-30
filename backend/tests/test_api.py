@@ -58,3 +58,25 @@ def test_non_pdf_rejected():
         response = client.post("/api/decks", files={"file": ("x.txt", b"hello", "text/plain")})
         assert response.status_code == 400
         assert response.json()["error"]["code"] == "not_a_pdf"
+
+
+def test_review_flow_with_timewarp(monkeypatch):
+    monkeypatch.setattr(llm, "generate_json", lambda prompt: FAKE_OUTPUT)
+    with TestClient(app) as client:
+        client.post("/api/settings", json={"daily_goal": 5})
+        deck = client.post("/api/decks", files={"file": ("n.pdf", FIXTURE.read_bytes(), "application/pdf")}).json()
+        card = client.get("/api/review/due").json()[0]
+
+        result = client.post(f"/api/review/{card['id']}", json={"grade": "good"}).json()
+        assert result["xp_gained"] == 10
+        assert result["concept"]["status"] == "learning" and result["concept"]["health"] == 1.0
+        assert result["stats"]["reviews_today"] == 1
+
+        # Reviewed card is not due again until tomorrow.
+        assert card["id"] not in [c["id"] for c in client.get("/api/review/due").json()]
+        client.post("/api/debug/timewarp", json={"days": 1})
+        assert card["id"] in [c["id"] for c in client.get("/api/review/due").json()]
+
+        wrong = client.post(f"/api/review/{card['id']}", json={"grade": "again"}).json()
+        assert wrong["xp_gained"] == 0
+        assert client.post("/api/debug/reset").status_code == 200
