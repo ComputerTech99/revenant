@@ -7,9 +7,7 @@ You are Aditya's agent and own the **frontend**. Ojash's agent (Claude Code) own
 
 @docs/CONTRACT.md
 
-## Ownership (strict)
-- Edit only `frontend/` and `docs/DEMO.md`.
-- **Never** edit `backend/`, `scripts/`, `CLAUDE.md` or `docs/CONTRACT.md`. If the API seems wrong, stop and tell Aditya. Never invent endpoints or fields.
+
 
 ## Hackathon rules (breaking these disqualifies the team)
 - No secrets in the repo; the frontend talks only to `/api`.
