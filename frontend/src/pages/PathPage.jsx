@@ -1,0 +1,521 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ArrowCounterClockwise,
+  ArrowRight,
+  BookOpen,
+  Cards,
+  ClockClockwise,
+  FastForward,
+  Lock,
+  ShieldCheck,
+  Sparkle,
+  Warning,
+  WarningCircle,
+} from '@phosphor-icons/react';
+import {
+  fetchDeckPath,
+   resetTimewarp,
+  timewarp,
+} from '../api/client.js';
+
+const EASE = [0.32, 0.72, 0, 1];
+
+const REVEAL_PROPS = {
+  initial: { y: 64, filter: 'blur(12px)', opacity: 0 },
+  whileInView: { y: 0, filter: 'blur(0px)', opacity: 1 },
+  viewport: { once: true, amount: 0.1 },
+  transition: { duration: 0.8, ease: EASE },
+};
+
+function CrackOverlay({ heavy = false }) {
+  return (
+    <svg
+      viewBox="0 0 120 120"
+      fill="none"
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      aria-hidden="true"
+    >
+      <path
+        d="M22 10L48 44L36 68L66 110"
+        stroke="#EF4444"
+        strokeWidth={heavy ? '2.5' : '1.75'}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={heavy ? '0.85' : '0.6'}
+      />
+      {heavy && (
+        <>
+          <path
+            d="M48 44L84 32L104 54"
+            stroke="#EF4444"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.75"
+          />
+          <path
+            d="M36 68L14 88"
+            stroke="#EF4444"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            opacity="0.7"
+          />
+          <path
+            d="M92 14L72 56L96 96"
+            stroke="#EF4444"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.65"
+          />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function getNodeVisualState(concept) {
+  const health = concept.health;
+  if (concept.status === 'new' || health === null || health === undefined) {
+    return {
+      tier: 'new',
+      label: 'Locked · New',
+      opacity: 0.65,
+      badgeRing: 'border-dashed border-[#313131] bg-[#131209] text-[#9B9B9B]',
+      cardBorder: 'border-dashed border-[#313131] bg-[#131209]',
+      glow: '',
+      cracks: 'none',
+      textAccent: 'text-[#9B9B9B]',
+    };
+  }
+  if (health >= 0.85) {
+    return {
+      tier: 'solid',
+      label: 'Solid · Mastered',
+      opacity: 1,
+      badgeRing:
+        'border-amber-400 bg-[#272727] text-amber-400 shadow-[0_0_28px_rgba(245,158,11,0.35)]',
+      cardBorder:
+        'border-amber-400/70 bg-[#1F1F1F] shadow-[0_0_28px_rgba(245,158,11,0.16)]',
+      glow: ' amber',
+      cracks: 'none',
+      textAccent: 'text-amber-400',
+    };
+  }
+  if (health >= 0.7) {
+    return {
+      tier: 'faded',
+      label: 'Slightly faded · Learning',
+      opacity: 0.84,
+      badgeRing: 'border-amber-400/40 bg-[#272727] text-[#EDEDED]',
+      cardBorder: 'border-[#313131] bg-[#1F1F1F]',
+      glow: '',
+      cracks: 'none',
+      textAccent: 'text-[#EDEDED]',
+    };
+  }
+  if (health >= 0.5) {
+    return {
+      tier: 'cracked',
+      label: 'Cracked · Shaky',
+      opacity: 0.74,
+      badgeRing:
+        'border-red-500/70 bg-[#1F1F1F] text-red-400 shadow-[0_0_18px_rgba(239,68,68,0.2)]',
+      cardBorder: 'border-red-500/50 bg-[#1F1F1F]',
+      glow: 'red',
+      cracks: 'light',
+      textAccent: 'text-red-400',
+    };
+  }
+  return {
+    tier: 'ghostly',
+    label: 'Heavily cracked · Ghostly',
+    opacity: 0.48,
+    badgeRing:
+      'border-red-500 bg-[#131209] text-red-400 shadow-[0_0_24px_rgba(239,68,68,0.28)]',
+    cardBorder: 'border-red-500/80 bg-[#1F1F1F]',
+    glow: 'red',
+    cracks: 'heavy',
+    textAccent: 'text-red-400',
+  };
+}
+
+function PathSkeleton() {
+  return (
+    <div className="flex flex-col items-center gap-8 py-6" aria-label="Loading concept path">
+      {[0, 1, 2, 3].map((idx) => (
+        <div
+          key={idx}
+          className="w-full max-w-xl rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2 animate-pulse"
+        >
+          <div className="rounded-lg bg-[#272727] p-4 flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-[#313131] shrink-0" />
+            <div className="flex flex-col gap-2 w-full">
+              <div className="h-5 w-48 rounded bg-[#313131]" />
+              <div className="h-3 w-32 rounded bg-[#313131]" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function PathPage({ decks, stats, onRefreshAll }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialDeckId = searchParams.get('deck_id') || decks?.[0]?.deck_id || '';
+  const [selectedDeckId, setSelectedDeckId] = useState(initialDeckId);
+  const [concepts, setConcepts] = useState([]);
+  const [selectedConceptId, setSelectedConceptId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [warping, setWarping] = useState(false);
+  const [warpedDays, setWarpedDays] = useState(0);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const paramDeck = searchParams.get('deck_id');
+    if (paramDeck) {
+      setSelectedDeckId(paramDeck);
+    } else if (decks?.length > 0 && (!selectedDeckId || !decks.some((d) => d.deck_id === selectedDeckId))) {
+      setSelectedDeckId(decks[0].deck_id);
+    }
+  }, [decks, searchParams, selectedDeckId]);
+
+  const loadPath = useCallback(
+    async (targetDeckId, showSkeleton = true) => {
+      if (!targetDeckId) return;
+      if (showSkeleton) {
+        setLoading(true);
+      }
+      setError('');
+      try {
+        const data = await fetchDeckPath(targetDeckId);
+        setConcepts(data || []);
+        setSelectedConceptId((prev) => {
+          if (prev && (data || []).some((c) => c.id === prev)) return prev;
+          return data?.[0]?.id || null;
+        });
+      } catch (err) {
+        setError(err.message || 'Could not load concept path for this deck.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    loadPath(selectedDeckId, true);
+  }, [loadPath, selectedDeckId]);
+
+  const handleSelectDeck = (deckId) => {
+    setSelectedDeckId(deckId);
+    setSearchParams({ deck_id: deckId });
+  };
+
+  const handleTimewarp = async (days) => {
+    setWarping(true);
+    setError('');
+    try {
+      await timewarp(days);
+      setWarpedDays((prev) => prev + days);
+      await loadPath(selectedDeckId, false);
+      await onRefreshAll?.();
+    } catch (err) {
+      setError(err.message || 'Time travel request failed.');
+    } finally {
+      setWarping(false);
+    }
+  };
+
+  const handleResetTimewarp = async () => {
+    setWarping(true);
+    setError('');
+    try {
+      await resetTimewarp();
+      setWarpedDays(0);
+      await loadPath(selectedDeckId, false);
+      await onRefreshAll?.();
+    } catch (err) {
+      setError(err.message || 'Could not reset time offset.');
+    } finally {
+      setWarping(false);
+    }
+  };
+
+  const formatClockDate = (isoString) => {
+    if (!isoString) return 'Today';
+    const d = new Date(isoString);
+    if (Number.isNaN(d.getTime())) return 'Today';
+    return d.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 pt-10 flex flex-col gap-10">
+      <motion.section {...REVEAL_PROPS} className="flex flex-col gap-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex flex-col gap-2 max-w-[680px]">
+            <h1 className="text-3xl sm:text-4xl font-bold text-[#EDEDED] text-balance">
+              Concept memory path
+            </h1>
+            <p className="text-base text-[#9B9B9B] text-pretty">
+              Every node reflects your live retention health. As days pass without review, solid nodes fade and crack.
+              Tap any concept to inspect its summary and grounded PDF pages.
+            </p>
+          </div>
+
+          <div
+            role="group"
+            aria-label="Demo time travel controls"
+            className="w-max rounded-full bg-[#1F1F1F] border border-[#313131] p-1 flex flex-wrap items-center gap-2 self-start"
+          >
+            <span className="inline-flex items-center gap-1 pl-3 pr-1 py-1 text-xs font-semibold text-amber-400">
+              <ClockClockwise weight="bold" className="w-4 h-4" />
+              <span>Demo: time travel</span>
+              {warpedDays > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-amber-400/50 font-mono text-xs">
+                  +{warpedDays}d
+                </span>
+              )}
+            </span>
+
+            <button
+              type="button"
+              disabled={warping}
+              onClick={() => handleTimewarp(1)}
+              className="px-3 py-1 rounded-full bg-[#272727] hover:bg-amber-400 hover:text-[#131209] border border-[#313131] font-mono text-xs font-semibold text-[#EDEDED] inline-flex items-center gap-1 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
+            >
+              <FastForward weight="fill" className="w-3.5 h-3.5" />
+              <span>+1 day</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={warping}
+              onClick={() => handleTimewarp(7)}
+              className="px-3 py-1 rounded-full bg-[#272727] hover:bg-amber-400 hover:text-[#131209] border border-[#313131] font-mono text-xs font-semibold text-[#EDEDED] inline-flex items-center gap-1 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
+            >
+              <FastForward weight="fill" className="w-3.5 h-3.5" />
+              <span>+7 days</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={warping}
+              onClick={handleResetTimewarp}
+              aria-label="Reset time travel offset"
+              title="Reset time travel"
+              className="px-2 py-1 rounded-full bg-[#131209] hover:bg-[#272727] border border-[#313131] text-xs font-semibold text-[#9B9B9B] hover:text-[#EDEDED] inline-flex items-center gap-1 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-50"
+            >
+              <ArrowCounterClockwise weight="bold" className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {decks && decks.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Select deck">
+              {decks.map((deck) => {
+                const isSelected = deck.deck_id === selectedDeckId;
+                return (
+                  <button
+                    key={deck.deck_id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSelected}
+                    onClick={() => handleSelectDeck(deck.deck_id)}
+                    className={`py-2 px-3 rounded-lg text-sm font-semibold border transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                      isSelected
+                        ? 'bg-[#272727] border-amber-400 text-amber-400'
+                        : 'bg-[#1F1F1F] border-[#313131] text-[#9B9B9B] hover:text-[#EDEDED] hover:bg-[#272727]'
+                    }`}
+                  >
+                    {deck.title}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="text-xs text-[#9B9B9B]">
+            Simulated clock:{' '}
+            <span className="font-mono font-semibold text-[#EDEDED]">
+              {formatClockDate(stats?.now)}
+            </span>
+          </div>
+        </div>
+      </motion.section>
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-2xl bg-[#1F1F1F] border border-red-500/50 p-4 flex items-center gap-3 text-sm text-red-400"
+        >
+          <WarningCircle weight="fill" className="w-5 h-5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {loading ? (
+        <PathSkeleton />
+      ) : concepts.length === 0 ? (
+        <div className="rounded-2xl bg-[#1F1F1F] border border-[#313131] p-2">
+          <div className="rounded-lg bg-[#272727] p-8 text-center flex flex-col items-center gap-3">
+            <p className="text-base font-semibold text-[#EDEDED]">
+              No concepts found for this deck
+            </p>
+            <Link
+              to="/"
+              className="py-2 px-3 rounded-lg bg-amber-400 text-[#131209] text-base font-semibold"
+            >
+              Return home
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <section aria-label="Winding concept path" className="relative py-4">
+          <div
+            className="hidden sm:block absolute left-1/2 top-8 bottom-8 w-0.5 bg-[#313131] -translate-x-1/2 pointer-events-none"
+            aria-hidden="true"
+          />
+
+          <div className="flex flex-col gap-6 relative z-10">
+            {concepts.map((concept, index) => {
+              const visual = getNodeVisualState(concept);
+              const isExpanded = selectedConceptId === concept.id;
+              const healthPct =
+                concept.health !== null && concept.health !== undefined
+                  ? `${Math.round(concept.health * 100)}%`
+                  : 'New';
+
+              const windingAlign =
+                index % 3 === 0
+                  ? 'sm:self-start sm:ml-8'
+                  : index % 3 === 1
+                    ? 'sm:self-center'
+                    : 'sm:self-end sm:mr-8';
+
+              return (
+                <motion.div
+                  key={concept.id}
+                  layout
+                  initial={{ opacity: 0, y: 32 }}
+                  animate={{
+                    opacity: visual.opacity,
+                    y: 0,
+                    scale: 1,
+                  }}
+                  transition={{ duration: 0.45, ease: EASE }}
+                  className={`w-full sm:max-w-xl ${windingAlign}`}
+                >
+                  <div
+                    className={`rounded-2xl border p-2 transition-all duration-300 ${visual.cardBorder}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedConceptId((prev) => (prev === concept.id ? null : concept.id))
+                      }
+                      aria-expanded={isExpanded}
+                      className="w-full rounded-lg bg-[#272727] hover:bg-[#313131]/60 p-4 text-left flex items-center gap-4 transition-all duration-300 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 relative overflow-hidden"
+                    >
+                      <div
+                        className={`relative w-16 h-16 rounded-full border-2 flex flex-col items-center justify-center shrink-0 overflow-hidden transition-all duration-300 ${visual.badgeRing}`}
+                      >
+                        {visual.cracks === 'light' && <CrackOverlay heavy={false} />}
+                        {visual.cracks === 'heavy' && <CrackOverlay heavy={true} />}
+
+                        {visual.tier === 'new' ? (
+                          <Lock weight="bold" className="w-6 h-6" />
+                        ) : (
+                          <>
+                            <span className="font-mono text-sm font-bold">{healthPct}</span>
+                            <span className="text-xs opacity-80">health</span>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className={`text-xs font-semibold ${visual.textAccent}`}>
+                            {visual.label}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-[#131209] border border-[#313131] font-mono text-xs text-[#9B9B9B]">
+                            {concept.card_count} cards
+                          </span>
+                        </div>
+
+                        <h2 className="text-lg font-bold text-[#EDEDED] text-balance">
+                          {concept.name}
+                        </h2>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <span className="text-xs text-[#9B9B9B]">
+                            Pages{' '}
+                            <span className="font-mono text-[#EDEDED]">
+                              {(concept.pages || []).join(', ')}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3, ease: EASE }}
+                          className="overflow-hidden"
+                        >
+                          <div className="rounded-lg bg-[#131209] border border-[#313131] mt-2 p-4 flex flex-col gap-4">
+                            <p className="text-sm text-[#EDEDED] text-pretty leading-relaxed">
+                              {concept.summary}
+                            </p>
+
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {(concept.pages || []).map((pageNumber) => (
+                                  <span
+                                    key={pageNumber}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#1F1F1F] border border-[#313131] text-xs text-[#9B9B9B]"
+                                  >
+                                    <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>
+                                      Page <span className="font-mono text-[#EDEDED]">{pageNumber}</span>
+                                    </span>
+                                  </span>
+                                ))}
+                              </div>
+
+                              <Link
+                                to={`/review?deck_id=${encodeURIComponent(concept.deck_id)}`}
+                                className="py-2 px-3 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#131209] text-sm font-semibold inline-flex items-center gap-2 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                              >
+                                <Cards weight="bold" className="w-4 h-4" />
+                                <span>Review concept cards</span>
+                                <ArrowRight weight="bold" className="w-4 h-4" />
+                              </Link>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
