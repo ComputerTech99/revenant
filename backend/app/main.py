@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from . import db, llm, scheduler, stats, views
 from .generate import generate_deck
+from .grade import grade_explanation
 from .ingest import IngestError, make_chunks, read_pdf
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -195,12 +196,14 @@ def score_to_grade(score: float) -> str:
 # Registered before /api/review/{card_id} so ".../explain" is never routed there.
 @app.post("/api/review/{card_id}/explain")
 def explain_card(card_id: str, body: ExplainBody):
-    # P4 replaces this placeholder score with Gemma grading.
+    # Read the card, then close the connection while the model grades, so a
+    # slow model call does not hold the database open.
     with db.connect() as conn:
         card = get_card_row(conn, card_id)
-        score = 0.6
-        feedback = "You named the main idea. You missed the detail in the source."
-        grade = score_to_grade(score)
+    score, feedback = grade_explanation(card, body.answer)
+    grade = score_to_grade(score)
+    with db.connect() as conn:
+        card = get_card_row(conn, card_id)
         result = apply_grade(conn, card, grade, base_xp=round(score * 20))
         return {
             "score": score,
