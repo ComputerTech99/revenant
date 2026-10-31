@@ -8,12 +8,3 @@ backend/data/
 node_modules/
 dist/
 .DS_Store
-
-
-# Agent guidelines and contract files
-CLAUDE.md
-CONTRACT.md
-GEMINI.md
-claude.md
-contract.md
-gemini.md

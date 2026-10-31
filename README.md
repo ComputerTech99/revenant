@@ -2,7 +2,7 @@
 
 Turns a student's lecture PDF into grounded spaced-repetition revision: Gemma extracts concepts and writes verbatim-cited questions, SM-2 schedules reviews, and a dark-mode browser UI makes forgetting visible before the exam.
 
-3-minute stage script: [`docs/DEMO.md`](docs/DEMO.md)
+API contract: [`CONTRACT.md`](CONTRACT.md) · 3-minute stage script: [`docs/DEMO.md`](docs/DEMO.md)
 
 ---
 
